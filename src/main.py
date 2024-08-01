@@ -440,6 +440,7 @@ def down_book(it):
         f.writelines(zj[i]+'\n')
     f.close()
 
+print('本程序完全免费。\nGithub: https://github.com/ying-ck/fanqienovel-downloader\n作者：Yck\n')
 print('请输入书的id(输gx更新):')
 inp = input()
 if inp=='gx':
@@ -458,9 +459,6 @@ else:
     down_book(inp)
     print('下载完成')
 time.sleep(2)
-
-
-
 
 
 
