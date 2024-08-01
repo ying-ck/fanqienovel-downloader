@@ -391,7 +391,9 @@ def down_zj(it):
     a = ele.xpath('//div[@class="chapter"]/div/a')
     for i in range(len(a)):
         an[a[i].text] = a[i].xpath('@href')[0].split('/')[-1]
-    return [ele.xpath('//h1/text()')[0],an]
+    if ele.xpath('//h1/text()')==[]:
+        return ['err',0,0]
+    return [ele.xpath('//h1/text()')[0],an,ele.xpath('//span[@class="info-label-yellow"]/text()')]
 
 def interpreter(uni):
     global CODE_ST,charset
@@ -422,7 +424,11 @@ def down_text(it):
 
 def down_book(it):
     f = False
-    name,zj = down_zj(it)
+    name,zj,zt = down_zj(it)
+    if name=='err':
+        return 'err'
+    zt = zt[0]
+    print('开始下载《%s》，状态‘%s’'%(name,zt))
     if exists(name+'.json'):
         f = True
         ozj = json.loads(open(name+'.json','r',encoding='UTF-8').read())
@@ -430,7 +436,7 @@ def down_book(it):
         if f and i in ozj and len(ozj[i])>30:
             zj[i] = ozj[i]
         else:
-            print('down',i)
+            print('下载',i)
             zj[i] = down_text(zj[i])
             time.sleep(random.random()/2)
             open(name+'.json','w',encoding='UTF-8').write(json.dumps(zj))
@@ -439,26 +445,34 @@ def down_book(it):
         f.writelines(i+'\n')
         f.writelines(zj[i]+'\n')
     f.close()
+    return zt
 
-print('本程序完全免费。\nGithub: https://github.com/ying-ck/fanqienovel-downloader\n作者：Yck\n')
-print('请输入书的id(输gx更新):')
-inp = input()
-if inp=='gx':
-    re = json.loads(open('record.json','r',encoding='UTF-8').read())
-    for i in re:
-        down_book(i)
-    print('更新完成')
-else:
-    if exists('record.json'):
+print('本程序完全免费。\nGithub: https://github.com/ying-ck/fanqienovel-downloader\n作者：Yck')
+while True:
+    print('\n请输入书的id(输gx更新):')
+    inp = input()
+    if inp=='gx':
         re = json.loads(open('record.json','r',encoding='UTF-8').read())
-        if not inp in re:
-            re.append(inp)
+        for i in re:
+            if down_book(inp)=='已完结':
+                re.pop(re.index(i))
+        print('更新完成')
     else:
-        re = [inp]
-    open('record.json','w',encoding='UTF-8').write(json.dumps(re))
-    down_book(inp)
-    print('下载完成')
-time.sleep(2)
+        try:
+            int(inp)
+        except:
+            print('请输入纯数字')
+        if exists('record.json'):
+            re = json.loads(open('record.json','r',encoding='UTF-8').read())
+            if not inp in re:
+                re.append(inp)
+        else:
+            re = [inp]
+        open('record.json','w',encoding='UTF-8').write(json.dumps(re))
+        if down_book(inp)=='err':
+            print('找不到此书')
+        else:
+            print('下载完成')
 
 
 
