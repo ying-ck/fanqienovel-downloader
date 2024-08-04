@@ -393,7 +393,19 @@ def down_zj(it):
         an[a[i].text] = a[i].xpath('@href')[0].split('/')[-1]
     if ele.xpath('//h1/text()')==[]:
         return ['err',0,0]
-    return [ele.xpath('//h1/text()')[0],an,ele.xpath('//span[@class="info-label-yellow"]/text()')]
+    # 提取标题
+    title_list = ele.xpath('//h1/text()')
+    if not title_list:
+        return ['err', 0, 0]
+
+    # 获取第一个标题
+    title = title_list[0]
+
+    # 删除标题中的冒号
+    clean_title = title.replace(':', '')
+
+    return [clean_title, an, ele.xpath('//span[@class="info-label-yellow"]/text()')]
+
 
 def interpreter(uni):
     global CODE_ST,charset
