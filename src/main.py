@@ -384,6 +384,31 @@ headers = {
     'User-Agent':'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36 QIHU 360SE'
 }
 
+def filencl(s):
+    a = ''
+    for i in s:
+        if i == '*':
+            a += '＊'
+        elif i == '/':
+            a += '／'
+        elif i == '\\':
+            a += '＼'
+        elif i == '?':
+            a += '？'
+        elif i == ':':
+            a += '：'
+        elif i == '>':
+            a += '＞'
+        elif i == '<':
+            a += '＜'
+        elif i == '"':
+            a += '＂'
+        elif i == '|':
+            a += '｜'
+        else:
+            a += i
+    return a
+
 def down_zj(it):
     global headers
     an = {}
@@ -393,7 +418,7 @@ def down_zj(it):
         an[a[i].text] = a[i].xpath('@href')[0].split('/')[-1]
     if ele.xpath('//h1/text()')==[]:
         return ['err',0,0]
-    return [ele.xpath('//h1/text()')[0],an,ele.xpath('//span[@class="info-label-yellow"]/text()')]
+    return [filencl(ele.xpath('//h1/text()')[0]),an,ele.xpath('//span[@class="info-label-yellow"]/text()')]
 
 def interpreter(uni):
     global CODE_ST,charset
