@@ -479,7 +479,7 @@ while True:
     if inp=='gx':
         re = json.loads(open('record.json','r',encoding='UTF-8').read())
         for i in re:
-            if down_book(inp)=='已完结':
+            if down_book(i)=='已完结':
                 re.pop(re.index(i))
         print('更新完成')
     else:
@@ -487,6 +487,7 @@ while True:
             int(inp)
         except:
             print('请输入纯数字')
+            continue
         if exists('record.json'):
             re = json.loads(open('record.json','r',encoding='UTF-8').read())
             if not inp in re:
