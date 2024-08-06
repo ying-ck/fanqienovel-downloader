@@ -1,6 +1,7 @@
 # fanqienovel-downloader
 
 下载番茄小说，通过Python实现。
+请勿滥用，且用且珍惜。
 
 ## 使用方法
 
