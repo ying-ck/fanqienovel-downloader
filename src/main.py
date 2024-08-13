@@ -2,6 +2,7 @@ import requests as req
 from lxml import etree
 import json,time,random
 from os.path import exists
+from os import popen
 
 CODE_ST = 58344
 CODE_ED = 58715
@@ -445,7 +446,7 @@ def down_text(it):
             s += interpreter(uni)
         else:
             s += n[i]
-    return s.replace('<\/p>','').replace('<p>', '').replace('</p>', '\n')
+    return '\n'.join(etree.HTML(s).xpath('//p/text()'))
 
 def down_book(it):
     f = False
@@ -453,7 +454,7 @@ def down_book(it):
     if name=='err':
         return 'err'
     zt = zt[0]
-    print('开始下载《%s》，状态‘%s’'%(name,zt))
+    print('\n开始下载《%s》，状态‘%s’'%(name,zt))
     if exists(name+'.json'):
         f = True
         ozj = json.loads(open(name+'.json','r',encoding='UTF-8').read())
@@ -466,22 +467,39 @@ def down_book(it):
             time.sleep(random.random()/2)
             open(name+'.json','w',encoding='UTF-8').write(json.dumps(zj))
     f = open(name+'.txt','w',encoding='UTF-8')
+    fg = '\n'+' '*config['kg']
     for i in zj:
-        f.writelines(i+'\n')
-        f.writelines(zj[i]+'\n')
+        f.writelines(i+fg)
+        if config['kg']==0:
+            f.writelines(zj[i]+'\n')
+        else:
+            f.writelines(zj[i].replace('\n',fg)+'\n')
     f.close()
     return zt
 
+popen('title fanqienovel-downloader v1.0.4')
 print('本程序完全免费。\nGithub: https://github.com/ying-ck/fanqienovel-downloader\n作者：Yck')
+if not exists('config.json'):
+    config = {'kg':0}
+else:
+    config = json.loads(open('config.json','r',encoding='UTF-8').read())
 while True:
-    print('\n请输入书的id(输gx更新):')
+    print('输入书的id直接下载\n输入下面的数字进入其他功能')
+    print('1.更新  2.设置')
     inp = input()
-    if inp=='gx':
+    if inp=='1':
         re = json.loads(open('record.json','r',encoding='UTF-8').read())
         for i in re:
             if down_book(i)=='已完结':
                 re.pop(re.index(i))
-        print('更新完成')
+        print('更新完成\n')
+    elif inp=='2':
+        print('\n1.正文段首空格')
+        im = input()
+        if im=='1':
+            config['kg'] = int(input('请输入空格数(当前%d)：'%config['kg']))
+        open('config.json','w',encoding='UTF-8').write(json.dumps(config))
+        print()
     else:
         try:
             int(inp)
