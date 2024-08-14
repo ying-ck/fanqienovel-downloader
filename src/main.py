@@ -449,10 +449,9 @@ def down_text(it):
     try:
         return '\n'.join(etree.HTML(s).xpath('//p/text()'))
     except:
-        s = s[6:]
         tmp = 1
         a = ''
-        for i in s:
+        for i in s[1:]:
             if i=='<':
                 tmp += 1
             elif i=='>':
@@ -538,6 +537,7 @@ while True:
             print('找不到此书')
         else:
             print('下载完成')
+
 
 
 
