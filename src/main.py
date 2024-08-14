@@ -446,7 +446,22 @@ def down_text(it):
             s += interpreter(uni)
         else:
             s += n[i]
-    return '\n'.join(etree.HTML(s).xpath('//p/text()'))
+    try:
+        return '\n'.join(etree.HTML(s).xpath('//p/text()'))
+    except:
+        s = s[6:]
+        tmp = 1
+        a = ''
+        for i in s:
+            if i=='<':
+                tmp += 1
+            elif i=='>':
+                tmp -= 1
+            elif tmp==0:
+                a += i
+            elif tmp==1 and i=='p':
+                a = (a+'\n').replace('\n\n','\n')
+        return a
 
 def down_book(it):
     f = False
@@ -459,7 +474,12 @@ def down_book(it):
         f = True
         ozj = json.loads(open(name+'.json','r',encoding='UTF-8').read())
     for i in zj:
-        if f and i in ozj and len(ozj[i])>30:
+        ff = False
+        try:
+            int(ozj[i])
+        except:
+            ff = True
+        if f and i in ozj and ff:
             zj[i] = ozj[i]
         else:
             print('下载',i)
@@ -477,7 +497,7 @@ def down_book(it):
     f.close()
     return zt
 
-popen('title fanqienovel-downloader v1.0.4')
+popen('title fanqienovel-downloader v1.0.5')
 print('本程序完全免费。\nGithub: https://github.com/ying-ck/fanqienovel-downloader\n作者：Yck')
 if not exists('config.json'):
     config = {'kg':0}
@@ -492,6 +512,7 @@ while True:
         for i in re:
             if down_book(i)=='已完结':
                 re.pop(re.index(i))
+        open('record.json','w',encoding='UTF-8').write(json.dumps(re))
         print('更新完成\n')
     elif inp=='2':
         print('\n1.正文段首空格')
