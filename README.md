@@ -23,7 +23,7 @@
 
 ## 作者
 
-- 作者：Yck (ying-ck) & qxqycb
+- 作者：Yck (ying-ck) & Yqy(qxqycb)
 
 ## Star趋势
 
