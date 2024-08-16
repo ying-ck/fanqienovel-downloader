@@ -1,5 +1,6 @@
 import requests as req
 from lxml import etree
+from tkinter import Tk,filedialog
 import json,time,random,os
 
 CODE_ST = 58344
@@ -476,7 +477,7 @@ def down_book(it, config_obj):
         if f:
             print('下载', i)
             zj[i] = down_text(zj[i])
-            time.sleep(random.random() / 3)
+            time.sleep(random.uniform(config_obj['delay'][0],config_obj['delay'][1])/1000)
             cs += 1
             if cs>=5:
                 cs = 0
@@ -485,18 +486,39 @@ def down_book(it, config_obj):
 
     with open(book_json_path, 'w', encoding='UTF-8') as json_file:
         json.dump(zj, json_file,ensure_ascii=False)
-
-    text_file_path = os.path.join(script_dir, safe_name + '.txt')
-    with open(text_file_path, 'w', encoding='UTF-8') as text_file:
-        fg = '\n' + ' ' * config_obj['kg']
+    
+    fg = '\n' + ' ' * config_obj['kg']
+    if config['save_mode']==1:
+        text_file_path = os.path.join(config_obj['save_path'], safe_name + '.txt')
+        with open(text_file_path, 'w', encoding='UTF-8') as text_file:
+            for chapter_title in zj:
+                text_file.write(chapter_title + fg)
+                if config_obj['kg'] == 0:
+                    text_file.write(zj[chapter_title] + '\n')
+                else:
+                    text_file.write(zj[chapter_title].replace('\n', fg) + '\n')
+    elif config['save_mode']==2:
+        text_dir_path = os.path.join(config_obj['save_path'], safe_name)
+        if not os.path.exists(text_dir_path):
+            os.makedirs(text_dir_path)
         for chapter_title in zj:
-            text_file.write(chapter_title + fg)
-            if config_obj['kg'] == 0:
-                text_file.write(zj[chapter_title] + '\n')
-            else:
-                text_file.write(zj[chapter_title].replace('\n', fg) + '\n')
+            text_file_path = os.path.join(text_dir_path, sanitize_filename(chapter_title) + '.txt')
+            with open(text_file_path, 'w', encoding='UTF-8') as text_file:
+                text_file.write(fg)
+                if config_obj['kg'] == 0:
+                    text_file.write(zj[chapter_title] + '\n')
+                else:
+                    text_file.write(zj[chapter_title].replace('\n', fg) + '\n')
+        
+    else:
+        print('保存模式出错！')
 
     return zt
+
+def select_save_directory():
+    root = Tk()
+    root.withdraw()  # 隐藏主窗口
+    return filedialog.askdirectory(title='请选择保存小说的文件夹')
 
 #script_dir = os.path.dirname(os.path.abspath(__file__))
 script_dir = ''
@@ -521,20 +543,24 @@ config_path = os.path.join(data_dir, 'config.json')
 
 # 打印程序信息
 # 打印程序信息
-os.popen('title fanqienovel-downloader v1.0.6')
+os.popen('title fanqienovel-downloader v1.0.7')
 print('本程序完全免费。\nGithub: https://github.com/ying-ck/fanqienovel-downloader\n作者：Yck & qxqycb')
 
 # 检查并创建配置文件config.json
 config_path = os.path.join(data_dir, 'config.json')
+reset = {'kg': 0,'delay': [50,150],'save_path': '','save_mode': 1}
 if not os.path.exists(config_path):
     if os.path.exists('config.json'):
         os.replace('config.json',config_path)
     else:
         with open(config_path, 'w', encoding='UTF-8') as f:
-            json.dump({'kg': 0}, f)
+            json.dump(reset, f)
 else:
     with open(config_path, 'r', encoding='UTF-8') as f:
         config = json.load(f)
+for i in reset:
+    if not i in config:
+        config[i] = reset[i]
 
 # 检查并创建记录文件record.json
 record_path = os.path.join(data_dir, 'record.json')
@@ -549,7 +575,7 @@ if not os.path.exists(record_path):
 while True:
     print('\n输入书的id直接下载\n输入下面的数字进入其他功能:')
     print('''
-1. 更新小说列表
+1. 更新小说
 2. 设置
 3. 退出
 ''')
@@ -561,8 +587,6 @@ while True:
         with open(record_path, 'r', encoding='UTF-8') as f:
             records = json.load(f)
         for book_id in records:
-            with open(config_path, 'r', encoding='UTF-8') as f:
-                config = json.load(f)
             status = down_book(book_id, config)
             if status == 'err' or status == '已完结':
                 records.remove(book_id)
@@ -572,11 +596,34 @@ while True:
 
     elif inp == '2':
         # 设置操作
-        with open(config_path, 'r', encoding='UTF-8') as f:
-            config = json.load(f)
-        config['kg'] = int(input('请输入正文段首空格数（当前为%d）：' % config['kg']))
+        print('请选择项目：1.正文段首空格数 2.章节下载间隔延迟 3.小说保存路径 4.小说保存方式')
+        inp2 = input()
+        if inp2 == '1':
+            config['kg'] = int(input('请输入正文段首空格数（当前为%d）：' % config['kg']))
+        elif inp2 == '2':
+            print('由于延迟过小造成的后果请自行负责。\n请输入下载间隔随机延迟的')
+            config['delay'][0] = int(input('下限（当前为%d）（毫秒）：' % config['delay'][0]))
+            config['delay'][1] = int(input('上限（当前为%d）（毫秒）：' % config['delay'][1]))
+        elif inp2 == '3':
+            print('tip:设置为当前目录点取消')
+            time.sleep(1)
+            config['save_path'] = select_save_directory()
+        elif inp2 == '4':
+            print('请选择：1.保存为单个txt 2.分章保存')
+            inp3 = input()
+            if inp3 == '1':
+                config['save_mode'] = 1
+            elif inp3 == '2':
+                config['save_mode'] = 2
+            else:
+                print('请正确输入!')
+                continue
+        else:
+            print('请正确输入!')
+            continue
         with open(config_path, 'w', encoding='UTF-8') as f:
             json.dump(config, f)
+        print('设置完成')
             
     elif inp == '3':
         break
@@ -591,8 +638,6 @@ while True:
                 records.append(book_id)
             with open(record_path, 'w', encoding='UTF-8') as f:
                 json.dump(records, f)
-            with open(config_path, 'r', encoding='UTF-8') as f:
-                config = json.load(f)
             status = down_book(book_id, config)
             if status == 'err':
                 print('找不到此书')
