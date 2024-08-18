@@ -2,6 +2,7 @@ import requests as req
 from lxml import etree
 from tkinter import Tk,filedialog
 import json,time,random,os,re,platform
+import sys
 
 CODE_ST = 58344
 CODE_ED = 58715
@@ -444,15 +445,20 @@ def sanitize_filename(filename):
         filename = filename.replace(illegal_chars[i], illegal_chars_rep[i])
     return filename
 
+def print_progress(cs, total, prefix='', suffix=''):
+    percent = ("{0:.1f}").format(100 * (cs / float(total)))
+    filled_length = int(50 * cs // total)
+    bar = '█' * filled_length + '-' * (50 - filled_length)
+    sys.stdout.write(f'\r{prefix} |{bar}| {percent}% {suffix}')
+    sys.stdout.flush()
 
-def down_book(it, config_obj):
+def down_book(it, config_obj, save_mode):  # 添加保存方式参数
     name, zj, zt = down_zj(it)
     if name == 'err':
         return 'err'
     zt = zt[0]
 
     safe_name = sanitize_filename(name)
-    book_dir = os.path.join(script_dir, safe_name)
 
     print('\n开始下载《%s》，状态‘%s’' % (name, zt))
     book_json_path = os.path.join(bookstore_dir, safe_name + '.json')
@@ -463,7 +469,8 @@ def down_book(it, config_obj):
     else:
         ozj = {}
 
-    cs = 0
+    cs = 0  # 初始化当前章节数
+    total_chapter_count = len(zj)
     for i in zj:
         f = False
         if i in ozj:
@@ -479,25 +486,24 @@ def down_book(it, config_obj):
             zj[i] = down_text(zj[i])
             time.sleep(random.uniform(config_obj['delay'][0],config_obj['delay'][1])/1000)
             cs += 1
-            if cs>=5:
-                cs = 0
-                with open(book_json_path, 'w', encoding='UTF-8') as json_file:
+            print_progress(cs, total_chapter_count, prefix='下载进度:', suffix='完成')
+            with open(book_json_path, 'w', encoding='UTF-8') as json_file:
                     json.dump(zj, json_file,ensure_ascii=False)
 
     with open(book_json_path, 'w', encoding='UTF-8') as json_file:
         json.dump(zj, json_file,ensure_ascii=False)
 
-    fg = '\n' + ' ' * config_obj['kg']
-    if config['save_mode']==1:
+    fg = '\n' +' '* config_obj['kg']
+    if save_mode == 1:  # 根据传入的保存方式进行处理
         text_file_path = os.path.join(config_obj['save_path'], safe_name + '.txt')
         with open(text_file_path, 'w', encoding='UTF-8') as text_file:
             for chapter_title in zj:
-                text_file.write(chapter_title + fg)
+                text_file.write(chapter_title + fg + '\n')
                 if config_obj['kg'] == 0:
-                    text_file.write(zj[chapter_title] + '\n')
+                    text_file.write(zj[chapter_title] + '\n\n')
                 else:
                     text_file.write(zj[chapter_title].replace('\n', fg) + '\n')
-    elif config['save_mode']==2:
+    elif save_mode == 2:
         text_dir_path = os.path.join(config_obj['save_path'], safe_name)
         if not os.path.exists(text_dir_path):
             os.makedirs(text_dir_path)
@@ -514,9 +520,28 @@ def down_book(it, config_obj):
         print('保存模式出错！')
 
     return zt
-
 def is_number(s):
     return s.isdigit()
+
+def search():
+    while True:
+        key = input("请输入搜索关键词（按下 Ctrl+C 返回）：")
+        response = req.get(f'https://fanqienovel.com/api/author/search/search_book/v1?'
+                           f'filter=127,127,127,127&page_count=10&page_index=0&query_type=0&query_word={key}')
+        books = response.json()['data']['search_book_data_list']
+
+        for i, book in enumerate(books):
+            print(f"{i + 1}. 名称：{book['book_name']} 作者：{book['author']} ID：{book['book_id']} 字数：{book['word_count']}")
+
+        while True:
+            choice_ = input("请选择一个结果, 输入 r 以重新搜索：")
+            if choice_ == "r":
+                break
+            elif choice_.isdigit() and 1 <= int(choice_) <= len(books):
+                chosen_book = books[int(choice_) - 1]
+                return chosen_book['book_id']
+            else:
+                print("输入无效，请重新输入。")
 
 def parse_id(url):
     # 使用正则表达式从URL中提取书籍ID
@@ -592,15 +617,16 @@ if not os.path.exists(record_path):
 
 # 主循环
 while True:
-    print('\n输入书的id直接下载\n输入下面的数字进入其他功能:')
+    print('\n输入书的链接或者id直接下载\n输入下面的数字进入其他功能:')
     print('''
 1. 更新小说
 2. 设置
-3. 退出
+3. 搜索
+4. 退出
 ''')
 
     inp = input()
-    if inp in ['1', '2', '3']:
+    if inp in ['1', '2', '3','4']:
         if inp == '1':
             # 更新操作
             with open(record_path, 'r', encoding='UTF-8') as f:
@@ -672,12 +698,15 @@ while True:
                     content = file.read()
                     urls = re.split(r',\s*', content.strip())
 
+                # 询问保存方式
+                save_mode = int(input("请选择保存方式：1.保存为单个txt 2.分章保存："))
+
                 # 开始批量下载
                 for url in urls:
                     book_id = parse_id(url)  # 尝试从链接中解析出书籍ID
                     if book_id is not None:
                         print(f'开始下载链接: {url}')
-                        status = down_book(book_id, config)
+                        status = down_book(book_id, config, save_mode)  # 修改这里，传递保存方式
                         if status == 'err':
                             print(f'链接: {url} 下载失败。')
                         else:
@@ -692,6 +721,15 @@ while True:
                 json.dump(config, f)
 
         elif inp == '3':
+            book_id = search()
+            save_mode = int(input("请选择保存方式：1.保存为单个 txt 2.分章保存："))  # 新增这一行获取保存方式
+            status = down_book(book_id, config, save_mode)
+            if status == 'err':
+                print('找不到此书或无效的 ID。')
+            else:
+                print('下载完成。')
+
+        elif inp == '4':
             break
 
     elif is_number(inp):  # 检查是否为纯数字ID
