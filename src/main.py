@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import requests as req
 from lxml import etree
 from tkinter import Tk,filedialog
@@ -219,6 +220,213 @@ def down_book_epub(it):
 
     return 's'
 
+def down_book_html(it):
+    name, zj, zt = down_zj(it)
+    if name == 'err':
+        return 'err'
+    zt = zt[0]
+
+    safe_name = sanitize_filename(name)
+    book_dir = os.path.join(script_dir, f"{safe_name}(html)")
+    if not os.path.exists(book_dir):
+        os.makedirs(book_dir)
+
+    print('\n开始下载《%s》，状态‘%s’' % (name, zt))
+    book_json_path = os.path.join(bookstore_dir, safe_name + '.json')
+
+    if os.path.exists(book_json_path):
+        with open(book_json_path, 'r', encoding='UTF-8') as json_file:
+            ozj = json.load(json_file)
+    else:
+        ozj = {}
+
+    # 生成目录 HTML 文件内容，添加 CSS 样式和响应式设计的 meta 标签
+    toc_content = """
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>目录</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        li a:hover {
+            text-decoration: underline;
+        }
+        p {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+<h1>目录</h1>
+<ul>
+"""
+    for chapter_title in zj:
+        toc_content += f"<li><a href='{chapter_title}.html'>{chapter_title}</a></li>"
+    toc_content += "</ul></body></html>"
+
+    # 将目录内容写入文件
+    with open(os.path.join(book_dir, "index.html"), "w", encoding='UTF-8') as toc_file:
+        toc_file.write(toc_content)
+
+    cs = 0
+    pbar = tqdm(total=len(zj))
+    for chapter_title, chapter_id in zj.items():
+        f = False
+        if chapter_title in ozj:
+            try:
+                int(ozj[chapter_title])
+                f = True
+            except:
+                zj[chapter_title] = ozj[chapter_title]
+        else:
+            f = True
+        if f:
+            tqdm.write(f'下载 {chapter_title}')
+            chapter_content = down_text(chapter_id)
+            time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
+            cs += 1
+            if cs >= 5:
+                cs = 0
+                with open(book_json_path, 'w', encoding='UTF-8') as json_file:
+                    json.dump(zj, json_file, ensure_ascii=False)
+
+            # 生成章节 HTML 文件内容，添加 CSS 样式、返回顶部按钮和装饰元素，同时保留换行符
+            formatted_content = chapter_content.replace('\n', '<br/>')
+            next_chapter_button = ""
+            if len(zj) > list(zj.keys()).index(chapter_title) + 1:
+                next_chapter_key = list(zj.keys())[list(zj.keys()).index(chapter_title) + 1]
+                next_chapter_button = f"<button onclick=\"location.href='{next_chapter_key}.html'\">下一章</button>"
+
+            chapter_html_content = f"""
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{chapter_title}</title>
+    <style>
+        body {{
+            display: flex;
+            min-height: 100vh;
+        }}
+     .left-side {{
+            flex: 1;
+            background-color: #ffffff;
+        }}
+     .content {{
+            flex: 3;
+            background-color: white;
+            padding: 20px;
+        }}
+     .right-side {{
+            flex: 1;
+            background-color: #ffffff;
+        }}
+        button {{
+            background-color: #d3d3d3;
+            color: black;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+        }}
+        #toggle-mode {{
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }}
+        @media (prefers-color-scheme: dark) {{
+            body {{
+                background-color: #333;
+            }}
+         .left-side,.right-side {{
+                background-color: #444;
+            }}
+         .content {{
+                background-color: #222;
+                color: white;
+            }}
+            button {{
+                background-color: #555;
+                color: white;
+            }}
+        }}
+    </style>
+    <script>
+        let isDarkMode = false;
+        document.getElementById('toggle-mode').addEventListener('click', function() {{
+            isDarkMode =!isDarkMode;
+            if (isDarkMode) {{
+                document.body.classList.add('dark-mode');
+                localStorage.setItem('mode', 'dark');
+            }} else {{
+                document.body.classList.remove('dark-mode');
+                localStorage.setItem('mode', 'light');
+            }}
+        }});
+
+        // 检查本地存储以确定初始模式
+        const savedMode = localStorage.getItem('mode');
+        if (savedMode === 'dark') {{
+            document.body.classList.add('dark-mode');
+            isDarkMode = true;
+        }}
+    </script>
+</head>
+<body>
+<div class="left-side"></div>
+<div class="content">
+    <h1>{chapter_title}</h1>
+    <p>{formatted_content}</p>
+    <a href="#" id="back-to-top">返回顶部</a>
+</div>
+<div class="right-side"></div>
+<div style="text-align: center; position: fixed; bottom: 20px; width: 100%;">
+    <button onclick="location.href='index.html'">目录</button>
+    {next_chapter_button}
+    <button onclick="backToTop()">返回顶部</button>
+    <button id="toggle-mode">切换模式</button>
+</div>
+<script>
+    // 当用户滚动页面时显示/隐藏返回顶部按钮
+    window.onscroll = function() {{
+        if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {{
+            document.getElementById("back-to-top").style.display = "block";
+        }} else {{
+            document.getElementById("back-to-top").style.display = "none";
+        }}
+    }};
+
+    // 当用户点击返回顶部按钮时，滚动页面到顶部
+    function backToTop() {{
+        document.body.scrollTop = 0;
+        document.documentElement.scrollTop = 0;
+    }}
+</script>
+</body>
+</html>
+"""
+
+            # 将章节内容写入文件
+            with open(os.path.join(book_dir, f"{chapter_title}.html"), "w", encoding='UTF-8') as chapter_file:
+                chapter_file.write(chapter_html_content)
+        pbar.update(1)
+
+    return 's'
+
 def select_save_directory():
     root = Tk()
     root.withdraw()  # 隐藏主窗口
@@ -259,6 +467,8 @@ def book2down(inp):
             json.dump(records, f)
         if config['save_mode'] == 3:
             status = down_book_epub(book_id)
+        elif config['save_mode'] == 4:  # 假设新增的 HTML 保存模式对应值为 4
+            status = down_book_html(book_id)
         else:
             status = down_book(book_id)
         if status == 'err':
@@ -298,7 +508,7 @@ print('本程序完全免费。\nGithub: https://github.com/ying-ck/fanqienovel-
 
 # 检查并创建配置文件config.json
 config_path = os.path.join(data_dir, 'config.json')
-reset = {'kg': 0,'kgf': '　','delay': [50,150],'save_path': '','save_mode': 1}
+reset = {'kg': 0,'kgf': '　','delay': [50, 150], 'save_path': '', 'save_mode': 1, 'space_mode': 'halfwidth'}
 if not os.path.exists(config_path):
     if os.path.exists('config.json'):
         os.replace('config.json',config_path)
@@ -365,7 +575,7 @@ while True:
             time.sleep(1)
             config['save_path'] = select_save_directory()
         elif inp2 == '4':
-            print('请选择：1.保存为单个txt 2.分章保存 3.保存为epub')
+            print('请选择：1.保存为单个 txt 2.分章保存 3.保存为 epub 4.保存为 HTML 网页格式')
             inp3 = input()
             if inp3 == '1':
                 config['save_mode'] = 1
@@ -373,6 +583,8 @@ while True:
                 config['save_mode'] = 2
             elif inp3 == '3':
                 config['save_mode'] = 3
+            elif inp3 == '4':
+                config['save_mode'] = 4
             else:
                 print('请正确输入!')
                 continue
