@@ -427,6 +427,50 @@ def down_book_html(it):
 
     return 's'
 
+def down_book_latex(it):
+    name, zj, zt = down_zj(it)
+    if name == 'err':
+        return 'err'
+    zt = zt[0]
+
+    safe_name = sanitize_filename(name)
+
+    print('\n开始下载《%s》，状态‘%s’' % (name, zt))
+    book_json_path = os.path.join(bookstore_dir, safe_name + '.json')
+
+    if os.path.exists(book_json_path):
+        with open(book_json_path, 'r', encoding='UTF-8') as json_file:
+            ozj = json.load(json_file)
+    else:
+        ozj = {}
+
+    latex_content = ""
+    for chapter_title, chapter_id in zj.items():
+        f = False
+        if chapter_title in ozj:
+            try:
+                int(ozj[chapter_title])
+                f = True
+            except:
+                zj[chapter_title] = ozj[chapter_title]
+        else:
+            f = True
+        if f:
+            tqdm.write(f'下载 {chapter_title}')
+            chapter_content = down_text(chapter_id)
+            time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
+
+            # 将章节内容转换为 LaTeX 格式
+            formatted_content = chapter_content.replace('\n', '\\newline ')
+            latex_content += f"\\chapter{{{chapter_title}}}\n{formatted_content}\n"
+
+    # 在脚本所在目录下输出 LaTeX 文件
+    latex_file_path = os.path.join(script_dir, f'{safe_name}.tex')
+    with open(latex_file_path, 'w', encoding='UTF-8') as latex_file:
+        latex_file.write(latex_content)
+
+    return 's'
+
 def select_save_directory():
     root = Tk()
     root.withdraw()  # 隐藏主窗口
@@ -467,8 +511,10 @@ def book2down(inp):
             json.dump(records, f)
         if config['save_mode'] == 3:
             status = down_book_epub(book_id)
-        elif config['save_mode'] == 4:  # 假设新增的 HTML 保存模式对应值为 4
+        elif config['save_mode'] == 4:
             status = down_book_html(book_id)
+        elif config['save_mode'] == 5:  # 新增的 LaTeX 保存模式
+            status = down_book_latex(book_id)
         else:
             status = down_book(book_id)
         if status == 'err':
@@ -575,7 +621,7 @@ while True:
             time.sleep(1)
             config['save_path'] = select_save_directory()
         elif inp2 == '4':
-            print('请选择：1.保存为单个 txt 2.分章保存 3.保存为 epub 4.保存为 HTML 网页格式')
+            print('请选择：1.保存为单个 txt 2.分章保存 3.保存为 epub 4.保存为 HTML 网页格式 5.保存为 LaTeX')
             inp3 = input()
             if inp3 == '1':
                 config['save_mode'] = 1
@@ -585,6 +631,8 @@ while True:
                 config['save_mode'] = 3
             elif inp3 == '4':
                 config['save_mode'] = 4
+            elif inp3 == '5':
+                config['save_mode'] = 5
             else:
                 print('请正确输入!')
                 continue
