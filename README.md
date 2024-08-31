@@ -36,6 +36,10 @@
 
 在使用此程序之前，请确保遵守相关法律法规以及网站的使用政策，并在有任何疑问或担忧时咨询法律顾问
 
+## 开源
+
+本程序遵循[GPL-3.0](https://github.com/ying-ck/fanqienovel-downloader?tab=GPL-3.0-1-ov-file)开源。使用本程序源码时请注明来源，并同样使用此协议。
+
 ## 作者
 
 - 作者：Yck (ying-ck) & Yqy(qxqycb)
