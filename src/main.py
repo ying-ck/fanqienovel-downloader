@@ -2,8 +2,8 @@
 import requests as req
 from lxml import etree
 from tkinter import Tk,filedialog
-from tqdm import tqdm
 from ebooklib import epub
+from tqdm import tqdm
 import json,time,random,os,platform
 
 CODE = [[58344,58715],[58345,58716]]
@@ -15,15 +15,17 @@ headers_lib = [
     ]
 
 headers = headers_lib[random.randint(0,len(headers_lib)-1)]
-bas = 1000000000000000000
 
 def get_cookie(zj,t=0):
     global cookie
+    bas = 1000000000000000000
     if t==0:
         for i in range(random.randint(bas*6,bas*8),bas*9):
             time.sleep(random.randint(50,150)/1000)
             cookie = 'novel_web_id='+str(i)
             if len(down_text(zj,2))>200:
+                with open(cookie_path, 'w', encoding='UTF-8') as f:
+                    json.dump(cookie,f)
                 return 's'
     else:
         cookie = t
@@ -63,16 +65,26 @@ def down_text(it,mod=1):
     global cookie
     headers2 = headers
     headers2['cookie'] = cookie
+    f=False
     while True:
         try:
             res = req.get('https://fanqienovel.com/api/reader/full?itemId='+str(it),headers=headers2)
             n = json.loads(res.text)['data']['chapterData']['content']
             break
         except:
-            time.sleep(0.5)
-    s = str_interpreter(n,0)
+            if mod==2:
+                return('err')
+            f=True
+            time.sleep(0.4)
+    if mod==1:
+        s = str_interpreter(n,0)
+    else:
+        s = n
     try:
-        return '\n'.join(etree.HTML(s).xpath('//p/text()'))
+        if mod==1:
+            return '\n'.join(etree.HTML(s).xpath('//p/text()')),f
+        else:
+            return '\n'.join(etree.HTML(s).xpath('//p/text()'))
     except:
         s = s[6:]
         tmp = 1
@@ -86,7 +98,7 @@ def down_text(it,mod=1):
                 a += i
             elif tmp==1 and i=='p':
                 a = (a+'\n').replace('\n\n','\n')
-        return a
+        return a,f
 
 def sanitize_filename(filename):
     illegal_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
@@ -115,6 +127,7 @@ def down_book(it):
         ozj = {}
     
     cs = 0
+    tcs=0
     pbar = tqdm(total=len(zj))
     for i in zj:
         f = False
@@ -128,8 +141,13 @@ def down_book(it):
             f = True
         if f:
             tqdm.write(f'下载 {i}')
-            zj[i] = down_text(zj[i])
+            zj[i],st = down_text(zj[i])
             time.sleep(random.randint(config['delay'][0],config['delay'][1])/1000)
+            if st:
+                tcs+=1
+                if tcs>7:
+                    tcs=0
+                    get_cookie(tzj)
             cs += 1
             if cs>=5:
                 cs = 0
@@ -513,7 +531,7 @@ def search():
                 print("输入无效，请重新输入。")
                 
 def book2down(inp):
-    if inp[:4] == 'http':
+    if str(inp)[:4] == 'http':
         inp = inp.split('?')[0].split('/')[-1]
     try:
         book_id = int(inp)
@@ -601,8 +619,6 @@ if os.path.exists(cookie_path):
     tmod = 1
 if tmod==0 or get_cookie(tzj,cookie)=='err':
     get_cookie(tzj)
-with open(cookie_path, 'w', encoding='UTF-8') as f:
-    json.dump(cookie,f)
 print('成功')
 
 # 主循环
@@ -622,8 +638,8 @@ while True:
         # 更新操作
         with open(record_path, 'r', encoding='UTF-8') as f:
             records = json.load(f)
-        for book_id in records:
-            status = down_book(book_id)
+        for book_id in tqdm(records):
+            status = book2down(book_id)
             if status == 'err' or status == '已完结':
                 records.remove(book_id)
         with open(record_path, 'w', encoding='UTF-8') as f:
@@ -725,4 +741,5 @@ while True:
         # 下载新书或更新现有书籍
         if book2down(inp)=='err':
             print('请输入有效的选项或书籍ID。')
+
 
