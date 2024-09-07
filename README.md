@@ -39,6 +39,18 @@
 | mac OS X 10.9 | 可运行 |
 | Kali Linux 2024.3 | 可运行 |
 
+## Q&A
+### Q1：
+报错：The above exception was the direct cause of the following exception:
+urllib3.exceptions.ProxyError: ('Unable to connect to proxy', FileNotFoundError(2, 'No such file or directory')) The above exception was the direct cause of the following exception:
+Traceback (most recent call last):
+File "requests\adapters. py", line 667, in send
+File "urllib3\connectionpool. py", line 843, in urlopen File "urllib3\util\retry. py", line 519, in increment
+urllib3. exceptions. MaxRetryError: HTTPSConnectionPool(host='fanqienovel. com', port=443): Max retries exceeded with url: /page/7143038691944959011 (Caused by ProxyError('Unable to connect to proxy', FileNotFoundError(2, 'No such file or dire ctory')))
+......
+### A1：
+网络错误，请检查网络连接(如：关闭代理、加速)
+
 ## 注意
 
 从旧版本(v1.00 ~ v1.05)升级到v1.0.6及更高版本需将json格式小说("(你下载的小说名).json")放入程序同文件夹下data/bookstore文件夹中，否则无法检测到原来的小说文件，将重新下载一次
