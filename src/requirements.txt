@@ -1,0 +1,5 @@
+requests~=2.32.3
+reportlab~=4.2.2
+tqdm~=4.66.5
+lxml~=5.3.0
+EbookLib~=0.18
