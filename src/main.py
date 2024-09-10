@@ -4,7 +4,11 @@ from lxml import etree
 from tkinter import Tk, filedialog
 from ebooklib import epub
 from tqdm import tqdm
-import json, time, random, os, platform
+import json
+import time
+import random
+import os
+import platform
 
 CODE = [[58344, 58715], [58345, 58716]]
 charset = json.loads(
@@ -38,9 +42,11 @@ def get_cookie(zj, t=0):
         else:
             return 'err'
 
+
 def down_zj(it):
     an = {}
-    ele = etree.HTML(req.get('https://fanqienovel.com/page/' + str(it), headers=headers).text)
+    ele = etree.HTML(
+        req.get('https://fanqienovel.com/page/' + str(it), headers=headers).text)
     a = ele.xpath('//div[@class="chapter"]/div/a')
     for i in range(len(a)):
         an[a[i].text] = a[i].xpath('@href')[0].split('/')[-1]
@@ -48,11 +54,13 @@ def down_zj(it):
         return ['err', 0, 0]
     return [ele.xpath('//h1/text()')[0], an, ele.xpath('//span[@class="info-label-yellow"]/text()')]
 
+
 def interpreter(uni, mode):
     bias = uni - CODE[mode][0]
     if bias < 0 or bias >= len(charset[mode]) or charset[mode][bias] == '?':
         return chr(uni)
     return charset[mode][bias]
+
 
 def str_interpreter(n, mode):
     s = ''
@@ -64,6 +72,7 @@ def str_interpreter(n, mode):
             s += n[i]
     return s
 
+
 def down_text(it, mod=1):
     global cookie
     headers2 = headers
@@ -71,7 +80,8 @@ def down_text(it, mod=1):
     f = False
     while True:
         try:
-            res = req.get('https://fanqienovel.com/api/reader/full?itemId=' + str(it), headers=headers2)
+            res = req.get(
+                'https://fanqienovel.com/api/reader/full?itemId=' + str(it), headers=headers2)
             n = json.loads(res.text)['data']['chapterData']['content']
             break
         except:
@@ -103,12 +113,14 @@ def down_text(it, mod=1):
                 a = (a + '\n').replace('\n\n', '\n')
         return a, f
 
+
 def sanitize_filename(filename):
     illegal_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
     illegal_chars_rep = ['＜', '＞', '：', '＂', '／', '＼', '｜', '？', '＊']
     for i in range(len(illegal_chars)):
         filename = filename.replace(illegal_chars[i], illegal_chars_rep[i])
     return filename
+
 
 def down_book(it):
     name, zj, zt = down_zj(it)
@@ -143,7 +155,8 @@ def down_book(it):
         if f:
             tqdm.write(f'下载 {i}')
             zj[i], st = down_text(zj[i])
-            time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
+            time.sleep(random.randint(
+                config['delay'][0], config['delay'][1]) / 1000)
             if st:
                 tcs += 1
                 if tcs > 7:
@@ -174,7 +187,8 @@ def down_book(it):
         if not os.path.exists(text_dir_path):
             os.makedirs(text_dir_path)
         for chapter_title in zj:
-            text_file_path = os.path.join(text_dir_path, sanitize_filename(chapter_title) + '.txt')
+            text_file_path = os.path.join(
+                text_dir_path, sanitize_filename(chapter_title) + '.txt')
             with open(text_file_path, 'w', encoding='UTF-8') as text_file:
                 text_file.write(fg)
                 if config['kg'] == 0:
@@ -227,7 +241,8 @@ def down_book_epub(it):
         if f:
             tqdm.write(f'下载 {chapter_title}')
             chapter_content, _ = down_text(chapter_id)
-            time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
+            time.sleep(random.randint(
+                config['delay'][0], config['delay'][1]) / 1000)
             cs += 1
             if cs >= 5:
                 cs = 0
@@ -236,7 +251,8 @@ def down_book_epub(it):
 
             # 保留原来换行符
             formatted_content = chapter_content.replace('\n', '<br/>')
-            chapter = epub.EpubHtml(title=chapter_title, file_name=f'{chapter_title}.xhtml', content=f'<h1>{chapter_title}</h1><p>{formatted_content}</p>')
+            chapter = epub.EpubHtml(
+                title=chapter_title, file_name=f'{chapter_title}.xhtml', content=f'<h1>{chapter_title}</h1><p>{formatted_content}</p>')
             book.add_item(chapter)
 
             # 将章节添加到目录列表
@@ -249,7 +265,8 @@ def down_book_epub(it):
     # 添加目录文件
     book.add_item(epub.EpubNcx())
     # 编写 EPUB 文件
-    epub.write_epub(os.path.join(config['save_path'], f'{safe_name}.epub'), book, {})
+    epub.write_epub(os.path.join(
+        config['save_path'], f'{safe_name}.epub'), book, {})
 
     return 's'
 
@@ -333,7 +350,8 @@ def down_book_html(it):
         if f:
             tqdm.write(f'下载 {chapter_title}')
             chapter_content, _ = down_text(chapter_id)
-            time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
+            time.sleep(random.randint(
+                config['delay'][0], config['delay'][1]) / 1000)
             cs += 1
             if cs >= 5:
                 cs = 0
@@ -344,7 +362,8 @@ def down_book_html(it):
             formatted_content = chapter_content.replace('\n', '<br/>')
             next_chapter_button = ""
             if len(zj) > list(zj.keys()).index(chapter_title) + 1:
-                next_chapter_key = list(zj.keys())[list(zj.keys()).index(chapter_title) + 1]
+                next_chapter_key = list(zj.keys())[list(
+                    zj.keys()).index(chapter_title) + 1]
                 next_chapter_button = f"<button onclick=\"location.href='{next_chapter_key}.html'\">下一章</button>"
 
             chapter_html_content = f"""
@@ -493,7 +512,8 @@ def down_book_latex(it):
         if f:
             tqdm.write(f'下载 {chapter_title}')
             chapter_content, _ = down_text(chapter_id)
-            time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
+            time.sleep(random.randint(
+                config['delay'][0], config['delay'][1]) / 1000)
 
             # 将章节内容转换为 LaTeX 格式
             formatted_content = chapter_content.replace('\n', '\\newline ')
@@ -593,7 +613,8 @@ print('本程序完全免费。\nGithub: https://github.com/ying-ck/fanqienovel-
 
 # 检查并创建配置文件config.json
 config_path = os.path.join(data_dir, 'config.json')
-reset = {'kg': 0, 'kgf': '　', 'delay': [50, 150], 'save_path': '', 'save_mode': 1, 'space_mode': 'halfwidth'}
+reset = {'kg': 0, 'kgf': '　', 'delay': [
+    50, 150], 'save_path': '', 'save_mode': 1, 'space_mode': 'halfwidth'}
 if not os.path.exists(config_path):
     if os.path.exists('config.json'):
         os.replace('config.json', config_path)
@@ -629,6 +650,40 @@ if tmod == 0 or get_cookie(tzj, cookie) == 'err':
     get_cookie(tzj)
 print('成功')
 
+
+def list_and_delete_books():
+    if not os.path.exists(record_path):
+        print("没有已下载的小说记录。")
+        return
+
+    # 读取记录文件
+    with open(record_path, 'r', encoding='UTF-8') as f:
+        records = json.load(f)
+
+    # 列出所有已下载的小说
+    print("已下载的小说:")
+    for idx, book_id in enumerate(records, start=1):
+        print(f"{idx}. {book_id}")
+
+    # 删除功能
+    choice = input("请输入要删除的小说编号（输入 'q' 退出）: ")
+    if choice.lower() == 'q':
+        return
+
+    try:
+        index = int(choice) - 1
+        if 0 <= index < len(records):
+            deleted_book_id = records.pop(index)
+            print(f"已删除小说: {deleted_book_id}")
+            # 保存更新后的记录
+            with open(record_path, 'w', encoding='UTF-8') as f:
+                json.dump(records, f)
+        else:
+            print("无效的编号，请重新输入。")
+    except ValueError:
+        print("请输入有效的数字。")
+
+
 # 主循环
 while True:
     print('\n输入书的id直接下载\n输入下面的数字进入其他功能:')
@@ -637,7 +692,8 @@ while True:
 2. 搜索
 3. 批量下载
 4. 设置
-5. 退出
+5. 删除下载
+6. 退出
 ''')
 
     inp = input()
@@ -665,8 +721,10 @@ while True:
             config['kg'] = int(input('请输入正文段首占位符数（当前为%d）：' % config['kg']))
         elif inp2 == '2':
             print('由于延迟过小造成的后果请自行负责。\n请输入下载间隔随机延迟的')
-            config['delay'][0] = int(input('下限（当前为%d）（毫秒）：' % config['delay'][0]))
-            config['delay'][1] = int(input('上限（当前为%d）（毫秒）：' % config['delay'][1]))
+            config['delay'][0] = int(
+                input('下限（当前为%d）（毫秒）：' % config['delay'][0]))
+            config['delay'][1] = int(
+                input('上限（当前为%d）（毫秒）：' % config['delay'][1]))
         elif inp2 == '3':
             print('tip:设置为当前目录点取消')
             time.sleep(1)
@@ -743,6 +801,8 @@ while True:
                     print(f'链接: {url} 下载完成。')
 
     elif inp == '5':
+        list_and_delete_books()
+    elif inp == '6':
         break
 
     else:
