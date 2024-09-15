@@ -1,8 +1,8 @@
 # Fanqienovel-downloader
 
 
-# 由于开学的原因，作者无法及时回复，敬请谅解
-# fanqienovel downloader由于API失效无法使用，现在有几个选择：
+### 由于开学的原因，作者无法及时回复，敬请谅解
+### fanqienovel downloader由于API失效无法使用，现在有几个选择：
 1.等待至API恢复使用
 2.换用新的API
 3.使用新的下载方法(目前没有)
