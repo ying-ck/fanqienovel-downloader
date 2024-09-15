@@ -4,6 +4,7 @@ from lxml import etree
 from tkinter import Tk, filedialog
 from ebooklib import epub
 from tqdm import tqdm
+from bs4 import BeautifulSoup
 import json, time, random, os, platform
 
 CODE = [[58344, 58715], [58345, 58716]]
@@ -245,8 +246,32 @@ def down_book_epub(it):
         ozj = {}
 
     book = epub.EpubBook()
+
+
     book.set_title(name)
     book.set_language('zh')
+
+    # 查找小说封面图片
+    url = f'https://fanqienovel.com/page/{it}'
+    response = req.get(url)
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.content, 'html.parser')
+        json_ld_script = soup.find('script', {'type': 'application/ld+json'})
+        if json_ld_script:
+            json_content = json_ld_script.string
+            data = json.loads(json_content)
+            if 'image' in data:
+                img_url = data['image'][0]
+                img_response = req.get(img_url)
+                if img_response.status_code == 200:
+                    # 将图片添加到 EPUB 书的封面
+                    book.set_cover('image.jpg', img_response.content)
+
+                    # 创建一个包含图片的页面并添加到书的开头，设置图片占满页面
+                    image_content = f'<div style="width:100%;height:100%;display:flex;justify-content:center;align-items:center;"><img src="image.jpg" style="width:100%;height:100%;object-fit:cover;" /></div>'
+                    image_page = epub.EpubHtml(title='封面图片', file_name='cover_image.xhtml', content=image_content)
+                    book.add_item(image_page)
+                    book.spine.insert(0, image_page)
 
     # 创建目录列表
     toc = []
@@ -273,9 +298,17 @@ def down_book_epub(it):
                 with open(book_json_path, 'w', encoding='UTF-8') as json_file:
                     json.dump(zj, json_file, ensure_ascii=False)
 
-            # 保留原来换行符
-            formatted_content = chapter_content.replace('\n', '<br/>')
-            chapter = epub.EpubHtml(title=chapter_title, file_name=f'{chapter_title}.xhtml', content=f'<h1>{chapter_title}</h1><p>{formatted_content}</p>')
+            # 添加占位符到每个段落
+            paragraphs = chapter_content.split('\n')
+            formatted_paragraphs = []
+            for paragraph in paragraphs:
+                if paragraph.strip():
+                    formatted_paragraphs.append(config['kgf'] * config['kg'] + paragraph)
+                else:
+                    formatted_paragraphs.append(paragraph)
+            formatted_content = '<br/>'.join(formatted_paragraphs).replace('\n', '<br/>')
+            chapter = epub.EpubHtml(title=chapter_title, file_name=f'{chapter_title}.xhtml',
+                                    content=f'<h1>{chapter_title}</h1><p>{formatted_content}</p>')
             book.add_item(chapter)
 
             # 将章节添加到目录列表
@@ -291,7 +324,6 @@ def down_book_epub(it):
     epub.write_epub(os.path.join(config['save_path'], f'{safe_name}.epub'), book, {})
 
     return 's'
-
 
 def down_book_html(it):
     name, zj, zt = down_zj(it)
@@ -557,24 +589,33 @@ def search():
         key = input("请输入搜索关键词（直接Enter返回）：")
         if key == '':
             return 'b'
-        response = req.get(f'https://fanqienovel.com/api/author/search/search_book/v1?'
-                           f'filter=127,127,127,127&page_count=10&page_index=0&query_type=0&query_word={key}',
-                           headers=headers)
-        books = response.json()['data']['search_book_data_list']
-
-        for i, book in enumerate(books):
-            print(
-                f"{i + 1}. 名称：{str_interpreter(book['book_name'], 1)} 作者：{str_interpreter(book['author'], 1)} ID：{book['book_id']} 字数：{book['word_count']}")
-
-        while True:
-            choice_ = input("请选择一个结果, 输入 r 以重新搜索：")
-            if choice_ == "r":
-                break
-            elif choice_.isdigit() and 1 <= int(choice_) <= len(books):
-                chosen_book = books[int(choice_) - 1]
-                return chosen_book['book_id']
+        # 使用新的API进行搜索
+        url = f"https://api5-normal-lf.fqnovel.com/reading/bookapi/search/page/v/?query={key}&aid=1967&channel=0&os_version=0&device_type=0&device_platform=0&iid=466614321180296&passback={{(page-1)*10}}&version_code=999"
+        response = req.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            if data['code'] == 0:
+                books = data['data']
+                if not books:
+                    print("没有找到相关书籍。")
+                    break
+                for i, book in enumerate(books):
+                    print(f"{i + 1}. 名称：{book['book_data'][0]['book_name']} 作者：{book['book_data'][0]['author']} ID：{book['book_data'][0]['book_id']} 字数：{book['book_data'][0]['word_number']}")
+                while True:
+                    choice_ = input("请选择一个结果, 输入 r 以重新搜索：")
+                    if choice_ == "r":
+                        break
+                    elif choice_.isdigit() and 1 <= int(choice_) <= len(books):
+                        chosen_book = books[int(choice_) - 1]
+                        return chosen_book['book_data'][0]['book_id']
+                    else:
+                        print("输入无效，请重新输入。")
             else:
-                print("输入无效，请重新输入。")
+                print("搜索出错，错误码：", data['code'])
+                break
+        else:
+            print("请求失败，状态码：", response.status_code)
+            break
 
 
 def book2down(inp):
@@ -733,8 +774,7 @@ while True:
         print('设置完成')
 
     elif inp == '2':
-        print('暂未开放')
-        continue
+
         tmp = search()
         if tmp == 'b':
             continue
@@ -789,4 +829,3 @@ while True:
         # 下载新书或更新现有书籍
         if book2down(inp) == 'err':
             print('请输入有效的选项或书籍ID。')
-
