@@ -71,6 +71,45 @@ def down_text(it, mod=1):
     f = False
     while True:
         try:
+            res = req.get('https://fanqienovel.com/reader/' + str(it), headers=headers2)
+            n = '\n'.join(etree.HTML(res.text).xpath('//div[@class="muye-reader-content noselect"]//p/text()'))
+            break
+        except:
+            if mod == 2:
+                return ('err')
+            f = True
+            time.sleep(0.4)
+    if mod == 1:
+        s = str_interpreter(n, 0)
+    else:
+        s = n
+    try:
+        if mod == 1:
+            return s, f
+        else:
+            return s
+    except:
+        s = s[6:]
+        tmp = 1
+        a = ''
+        for i in s:
+            if i == '<':
+                tmp += 1
+            elif i == '>':
+                tmp -= 1
+            elif tmp == 0:
+                a += i
+            elif tmp == 1 and i == 'p':
+                a = (a + '\n').replace('\n\n', '\n')
+        return a, f
+
+def down_text_old(it, mod=1):
+    global cookie
+    headers2 = headers
+    headers2['cookie'] = cookie
+    f = False
+    while True:
+        try:
             res = req.get('https://fanqienovel.com/api/reader/full?itemId=' + str(it), headers=headers2)
             n = json.loads(res.text)['data']['chapterData']['content']
             break
@@ -561,7 +600,6 @@ def book2down(inp):
             print('找不到此书')
             return 'err'
         else:
-            print('下载完成')
             return 's'
     except ValueError:
         return 'err'
@@ -695,6 +733,8 @@ while True:
         print('设置完成')
 
     elif inp == '2':
+        print('暂未开放')
+        continue
         tmp = search()
         if tmp == 'b':
             continue
@@ -749,3 +789,4 @@ while True:
         # 下载新书或更新现有书籍
         if book2down(inp) == 'err':
             print('请输入有效的选项或书籍ID。')
+
