@@ -5,7 +5,7 @@ from tkinter import Tk, filedialog
 from ebooklib import epub
 from tqdm import tqdm
 from bs4 import BeautifulSoup
-import json, time, random, os, platform
+import json, time, random, os, platform, shutil
 
 CODE = [[58344, 58715], [58345, 58716]]
 charset = json.loads(
@@ -241,14 +241,29 @@ def down_book_epub(it):
 
     if os.path.exists(book_json_path):
         with open(book_json_path, 'r', encoding='UTF-8') as json_file:
+            import json
             ozj = json.load(json_file)
     else:
         ozj = {}
 
+    # 获取作者信息
+    url = f'https://fanqienovel.com/page/{it}'
+    response = req.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    script_tag = soup.find('script', type="application/ld+json")
+    author_name = None
+    if script_tag:
+        json_data = script_tag.string
+        import json
+        data = json.loads(json_data)
+        if 'author' in data:
+            author_name = data['author'][0]['name']
+
     book = epub.EpubBook()
 
-
     book.set_title(name)
+    if author_name:
+        book.add_author(author_name)
     book.set_language('zh')
 
     # 查找小说封面图片
@@ -312,7 +327,7 @@ def down_book_epub(it):
             book.add_item(chapter)
 
             # 将章节添加到目录列表
-            toc.append((epub.Section(chapter_title), [chapter]))
+            toc.append(chapter)
             book.spine.append(chapter)
         pbar.update(1)
 
@@ -324,6 +339,7 @@ def down_book_epub(it):
     epub.write_epub(os.path.join(config['save_path'], f'{safe_name}.epub'), book, {})
 
     return 's'
+
 
 def down_book_html(it):
     name, zj, zt = down_zj(it)
@@ -708,6 +724,52 @@ if tmod == 0 or get_cookie(tzj, cookie) == 'err':
     get_cookie(tzj)
 print('成功')
 
+backup_folder_path = 'C:\\Users\\Administrator\\fanqie_down_backup'
+
+if os.path.exists(backup_folder_path):
+    choice = input("检测到备份文件夹，是否使用备份数据？1.使用备份  2.跳过：")
+    if choice == '1':
+        if os.path.isdir(backup_folder_path):
+            source_folder_path = os.path.dirname(os.path.abspath(__file__))
+            for item in os.listdir(backup_folder_path):
+                source_item_path = os.path.join(backup_folder_path, item)
+                target_item_path = os.path.join(source_folder_path, item)
+                if os.path.isfile(source_item_path):
+                    if os.path.exists(target_item_path):
+                        os.remove(target_item_path)
+                    shutil.copy2(source_item_path, target_item_path)
+                elif os.path.isdir(source_item_path):
+                    if os.path.exists(target_item_path):
+                        shutil.rmtree(target_item_path)
+                    shutil.copytree(source_item_path, target_item_path)
+        else:
+            print("备份文件夹不存在，无法使用备份数据。")
+    elif choice!= '2':
+        print("输入无效，请重新运行程序并正确输入。")
+else:
+    print("程序还未备份")
+
+def perform_backup():
+    # 如果备份文件夹存在，先删除旧备份内容
+    if os.path.isdir(backup_folder_path):
+        for item in os.listdir(backup_folder_path):
+            item_path = os.path.join(backup_folder_path, item)
+            if os.path.isfile(item_path):
+                os.remove(item_path)
+            elif os.path.isdir(item_path):
+                shutil.rmtree(item_path)
+    else:
+        os.makedirs(backup_folder_path)
+    source_folder_path = os.path.dirname(os.path.abspath(__file__))
+    for item in os.listdir(source_folder_path):
+        source_item_path = os.path.join(source_folder_path, item)
+        target_item_path = os.path.join(backup_folder_path, item)
+        if os.path.isfile(source_item_path) and os.path.basename(__file__)!= item:
+            shutil.copy2(source_item_path, target_item_path)
+        elif os.path.isdir(source_item_path) and os.path.basename(__file__)!= item and item!='backup':
+            shutil.copytree(source_item_path, target_item_path)
+
+
 # 主循环
 while True:
     print('\n输入书的id直接下载\n输入下面的数字进入其他功能:')
@@ -716,7 +778,8 @@ while True:
 2. 搜索
 3. 批量下载
 4. 设置
-5. 退出
+5. 备份
+6. 退出
 ''')
 
     inp = input()
@@ -823,6 +886,10 @@ while True:
                     print(f'链接: {url} 下载完成。')
 
     elif inp == '5':
+        perform_backup()
+        print('备份完成')
+
+    elif inp == '6':
         break
 
     else:
