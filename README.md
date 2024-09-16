@@ -2,7 +2,7 @@
 
 
 ### 由于开学的原因，作者无法及时回复，敬请谅解
-### fanqienovel downloader由于API失效无法使用，现在请使用最新版本：
+### fanqienovel downloader v1.1.5及以下版本，由于API失效无法使用，现在请使用最新版本（v1.1.6及以上）：
 
 下载番茄小说，通过Python实现
 请勿滥用，且用且珍惜
