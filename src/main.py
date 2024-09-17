@@ -239,12 +239,10 @@ def down_book_epub(it):
     print('\n开始下载《%s》，状态‘%s’' % (name, zt))
     book_json_path = os.path.join(bookstore_dir, safe_name + '.json')
 
+    existing_json_content = {}
     if os.path.exists(book_json_path):
         with open(book_json_path, 'r', encoding='UTF-8') as json_file:
-            import json
-            ozj = json.load(json_file)
-    else:
-        ozj = {}
+            existing_json_content = json.load(json_file)
 
     # 获取作者信息
     url = f'https://fanqienovel.com/page/{it}'
@@ -295,23 +293,23 @@ def down_book_epub(it):
     pbar = tqdm(total=len(zj))
     for chapter_title, chapter_id in zj.items():
         f = False
-        if chapter_title in ozj:
+        if chapter_title in existing_json_content:
             try:
-                int(ozj[chapter_title])
+                int(existing_json_content[chapter_title])
                 f = True
             except:
-                zj[chapter_title] = ozj[chapter_title]
+                zj[chapter_title] = existing_json_content[chapter_title]
         else:
             f = True
         if f:
             tqdm.write(f'下载 {chapter_title}')
             chapter_content, _ = down_text(chapter_id)
             time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
-            cs += 1
-            if cs >= 5:
-                cs = 0
-                with open(book_json_path, 'w', encoding='UTF-8') as json_file:
-                    json.dump(zj, json_file, ensure_ascii=False)
+
+            # 每章都保存 JSON 文件
+            existing_json_content[chapter_title] = chapter_content
+            with open(book_json_path, 'w', encoding='UTF-8') as json_file:
+                json.dump(existing_json_content, json_file, ensure_ascii=False)
 
             # 添加占位符到每个段落
             paragraphs = chapter_content.split('\n')
@@ -355,11 +353,10 @@ def down_book_html(it):
     print('\n开始下载《%s》，状态‘%s’' % (name, zt))
     book_json_path = os.path.join(bookstore_dir, safe_name + '.json')
 
+    existing_json_content = {}
     if os.path.exists(book_json_path):
         with open(book_json_path, 'r', encoding='UTF-8') as json_file:
-            ozj = json.load(json_file)
-    else:
-        ozj = {}
+            existing_json_content = json.load(json_file)
 
     # 生成目录 HTML 文件内容，添加 CSS 样式和响应式设计的 meta 标签
     toc_content = """
@@ -409,12 +406,12 @@ def down_book_html(it):
     pbar = tqdm(total=len(zj))
     for chapter_title, chapter_id in zj.items():
         f = False
-        if chapter_title in ozj:
+        if chapter_title in existing_json_content:
             try:
-                int(ozj[chapter_title])
+                int(existing_json_content[chapter_title])
                 f = True
             except:
-                zj[chapter_title] = ozj[chapter_title]
+                zj[chapter_title] = existing_json_content[chapter_title]
         else:
             f = True
         if f:
@@ -422,10 +419,11 @@ def down_book_html(it):
             chapter_content, _ = down_text(chapter_id)
             time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
             cs += 1
-            if cs >= 5:
-                cs = 0
-                with open(book_json_path, 'w', encoding='UTF-8') as json_file:
-                    json.dump(zj, json_file, ensure_ascii=False)
+
+            # 每章都保存 JSON 文件
+            existing_json_content[chapter_title] = chapter_content
+            with open(book_json_path, 'w', encoding='UTF-8') as json_file:
+                json.dump(existing_json_content, json_file, ensure_ascii=False)
 
             # 生成章节 HTML 文件内容，添加 CSS 样式、返回顶部按钮和装饰元素，同时保留换行符
             formatted_content = chapter_content.replace('\n', '<br/>')
@@ -444,16 +442,16 @@ def down_book_html(it):
             display: flex;
             min-height: 100vh;
         }}
-   .left-side {{
+.left-side {{
             flex: 1;
             background-color: #ffffff;
         }}
-   .content {{
+.content {{
             flex: 3;
             background-color: white;
             padding: 20px;
         }}
-   .right-side {{
+.right-side {{
             flex: 1;
             background-color: #ffffff;
         }}
@@ -473,10 +471,10 @@ def down_book_html(it):
             body {{
                 background-color: #333;
             }}
-       .left-side,.right-side {{
+    .left-side,.right-side {{
                 background-color: #444;
             }}
-       .content {{
+    .content {{
                 background-color: #222;
                 color: white;
             }}
@@ -560,27 +558,31 @@ def down_book_latex(it):
     print('\n开始下载《%s》，状态‘%s’' % (name, zt))
     book_json_path = os.path.join(bookstore_dir, safe_name + '.json')
 
+    existing_json_content = {}
     if os.path.exists(book_json_path):
         with open(book_json_path, 'r', encoding='UTF-8') as json_file:
-            ozj = json.load(json_file)
-    else:
-        ozj = {}
+            existing_json_content = json.load(json_file)
 
     latex_content = ""
     for chapter_title, chapter_id in zj.items():
         f = False
-        if chapter_title in ozj:
+        if chapter_title in existing_json_content:
             try:
-                int(ozj[chapter_title])
+                int(existing_json_content[chapter_title])
                 f = True
             except:
-                zj[chapter_title] = ozj[chapter_title]
+                zj[chapter_title] = existing_json_content[chapter_title]
         else:
             f = True
         if f:
             tqdm.write(f'下载 {chapter_title}')
             chapter_content, _ = down_text(chapter_id)
             time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
+
+            # 每章都保存 JSON 文件
+            existing_json_content[chapter_title] = chapter_content
+            with open(book_json_path, 'w', encoding='UTF-8') as json_file:
+                json.dump(existing_json_content, json_file, ensure_ascii=False)
 
             # 将章节内容转换为 LaTeX 格式
             formatted_content = chapter_content.replace('\n', '\\newline ')
