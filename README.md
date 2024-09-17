@@ -84,6 +84,10 @@ urllib3. exceptions. MaxRetryError: HTTPSConnectionPool(host='fanqienovel. com',
 
 在使用此程序之前，请确保遵守相关法律法规以及网站的使用政策，并在有任何疑问或担忧时咨询法律顾问
 
+This program is designed for educational and research purposes related to Python web crawlers and web page processing technologies. It should not be used for any illegal activities or acts that violate the rights of others. Users are responsible for any legal liabilities and risks arising from the use of this program. The author and project contributors are not responsible for any losses or damages resulting from the use of the program.
+
+Before using this program, please ensure compliance with relevant laws and regulations and the website's usage policies. Consult a legal advisor if you have any questions or concerns.
+
 ## 开源
 
 本程序遵循[GPL-3.0](https://github.com/ying-ck/fanqienovel-downloader?tab=GPL-3.0-1-ov-file)开源。使用本程序源码时请注明来源，并同样使用此协议。
