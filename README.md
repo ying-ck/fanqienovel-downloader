@@ -90,7 +90,7 @@ Before using this program, please ensure compliance with relevant laws and regul
 
 ## 开源
 
-本程序遵循[GPL-3.0](https://github.com/ying-ck/fanqienovel-downloader?tab=GPL-3.0-1-ov-file)开源。使用本程序源码时请注明来源，并同样使用此协议。
+本程序遵循[AGPL-3.0](https://github.com/ying-ck/fanqienovel-downloader?tab=AGPL-3.0-1-ov-file)开源。使用本程序源码时请注明来源，并同样使用此协议。
 
 ## 作者
 
