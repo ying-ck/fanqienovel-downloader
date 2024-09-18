@@ -124,8 +124,8 @@ def down_text(idx:str,mod:int=1) -> tuple[str,bool]:
     f=False
     while True:
         try:
-            res=req.get('https://fanqienovel.com/api/reader/full?itemId='+idx,headers=headers2)
-            n=res.json()['data']['chapterData']['content']
+            res=req.get('https://fanqienovel.com/reader/'+idx,headers=headers2)
+            n = '\n'.join(etree.HTML(res.text).xpath('//div[@class="muye-reader-content noselect"]//p/text()'))
             break
         except:  # 捕获所有异常
             if mod == 2:
@@ -137,7 +137,7 @@ def down_text(idx:str,mod:int=1) -> tuple[str,bool]:
     else:
         s=n
     try:
-        return '\n'.join(etree.HTML(s).xpath('//p/text()')),f
+        return s, f
     except:
         s=s[6:]
         tmp=1

@@ -5,32 +5,44 @@ from tkinter import Tk
 
 import init
 from down import book,epub,html,latex,pdf,markdown
-from utils import str_interpreter,savejson,loadjson,select_save_directory
+from utils import savejson,loadjson,select_save_directory
 import config
 
 def search() -> None:
     while True:
-        key=input("请输入搜索关键词（直接Enter返回）：")
-        if not key:
+        # 使用新的API进行搜索
+        key = input("请输入搜索关键词（直接Enter返回）：")
+        if key == '':
             return
-        response=req.get(f'https://fanqienovel.com/api/author/search/search_book/v1?'
-                         f'filter=127,127,127,127&page_count=10&page_index=0&query_type=0&query_word={key}',headers=config.headers)
-        books:list[dict[str,str]]=response.json()['data']['search_book_data_list']
-
-        for idx,item in enumerate(books):
-            print(
-                f"{idx+1}. 名称：{str_interpreter(item['book_name'],1)} 作者：{str_interpreter(item['author'],1)} ID：{item['book_id']} 字数：{item['word_count']}")
-
-        while True:
-            choice_=input("请选择一个结果, 输入 r 以重新搜索：")
-            if choice_=="r":
-                break
-            elif choice_.isdigit() and 1<=int(choice_)<=len(books):
-                chosen_book = books[int(choice_) - 1]
-                if not download(chosen_book['book_id']):
-                    print('下载失败')
+        url = f"https://api5-normal-lf.fqnovel.com/reading/bookapi/search/page/v/?query={key}&aid=1967&channel=0&os_version=0&device_type=0&device_platform=0&iid=466614321180296&passback={{(page-1)*10}}&version_code=999"
+        response = req.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            if data['code'] == 0:
+                books = data['data']
+                if not books:
+                    print("没有找到相关书籍。")
+                    break
+                for i, bok in enumerate(books):
+                    print(f"{i + 1}. 名称：{bok['book_data'][0]['book_name']} 作者：{bok['book_data'][0]['author']} ID：{bok['book_data'][0]['book_id']} 字数：{bok['book_data'][0]['word_number']}")
+                while True:
+                    choice_ = input("请选择一个结果, 输入 r 以重新搜索：")
+                    if choice_ == "r":
+                        break
+                    elif choice_.isdigit() and 1 <= int(choice_) <= len(books):
+                        chosen_book = books[int(choice_) - 1]
+                        if not download(chosen_book['book_id']):
+                            print('下载失败')
+                    else:
+                        print("输入无效，请重新输入。")
             else:
                 print("输入无效，请重新输入。")
+                print("搜索出错，错误码：", data['code'])
+                break
+        else:
+            print("请求失败，状态码：", response.status_code)
+            break
+
 
 
 def download(book_id:str) -> bool:
