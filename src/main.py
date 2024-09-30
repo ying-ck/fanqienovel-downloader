@@ -6,6 +6,7 @@ from ebooklib import epub
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 import json, time, random, os, platform, shutil
+import concurrent.futures
 
 CODE = [[58344, 58715], [58345, 58716]]
 charset = json.loads(
@@ -150,7 +151,35 @@ def sanitize_filename(filename):
         filename = filename.replace(illegal_chars[i], illegal_chars_rep[i])
     return filename
 
+def download_chapter(chapter_title, chapter_id, ozj):
+    global zj, cs, book_json_path
+    f = False
+    if chapter_title in ozj:
+        try:
+            int(ozj[chapter_title])
+            f = True
+        except:
+            zj[chapter_title] = ozj[chapter_title]
+    else:
+        f = True
+    if f:
+        tqdm.write(f'下载 {chapter_title}')
+        zj[chapter_title], st = down_text(chapter_id)
+        time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
+        if st:
+            tcs += 1
+            if tcs > 7:
+                tcs = 0
+                get_cookie(tzj)
+        cs += 1
+        if cs >= 5:
+            cs = 0
+            with open(book_json_path, 'w', encoding='UTF-8') as json_file:
+                json.dump(zj, json_file, ensure_ascii=False)
+    return chapter_title
+
 def down_book(it):
+    global zj, cs, book_json_path
     name, zj, zt = down_zj(it)
     if name == 'err':
         return 'err'
@@ -169,31 +198,17 @@ def down_book(it):
 
     cs = 0
     tcs = 0
+    tasks = []
+    # 使用配置的线程数创建线程池
+    if 'xc' in config:
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=config['xc'])
+    else:
+        executor = concurrent.futures.ThreadPoolExecutor()
     pbar = tqdm(total=len(zj))
-    for i in zj:
-        f = False
-        if i in ozj:
-            try:
-                int(ozj[i])
-                f = True
-            except:
-                zj[i] = ozj[i]
-        else:
-            f = True
-        if f:
-            tqdm.write(f'下载 {i}')
-            zj[i], st = down_text(zj[i])
-            time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
-            if st:
-                tcs += 1
-                if tcs > 7:
-                    tcs = 0
-                    get_cookie(tzj)
-            cs += 1
-            if cs >= 5:
-                cs = 0
-                with open(book_json_path, 'w', encoding='UTF-8') as json_file:
-                    json.dump(zj, json_file, ensure_ascii=False)
+    for chapter_title, chapter_id in zj.items():
+        tasks.append(executor.submit(download_chapter, chapter_title, chapter_id, ozj))
+    for future in concurrent.futures.as_completed(tasks):
+        chapter_title = future.result()
         pbar.update(1)
 
     with open(book_json_path, 'w', encoding='UTF-8') as json_file:
@@ -226,8 +241,35 @@ def down_book(it):
 
     return zt
 
+def download_chapter_epub(chapter_title, chapter_id, ozj):
+    global zj, cs, book_json_path
+    f = False
+    if chapter_title in ozj:
+        try:
+            int(ozj[chapter_title])
+            f = True
+        except:
+            zj[chapter_title] = ozj[chapter_title]
+    else:
+        f = True
+    if f:
+        tqdm.write(f'下载 {chapter_title}')
+        zj[chapter_title], st = down_text(chapter_id)
+        time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
+        if st:
+            tcs += 1
+            if tcs > 7:
+                tcs = 0
+                get_cookie(tzj)
+        cs += 1
+        if cs >= 5:
+            cs = 0
+            with open(book_json_path, 'w', encoding='UTF-8') as json_file:
+                json.dump(zj, json_file, ensure_ascii=False)
+    return chapter_title, zj[chapter_title]
 
 def down_book_epub(it):
+    global zj, cs, book_json_path
     name, zj, zt = down_zj(it)
     if name == 'err':
         return 'err'
@@ -290,44 +332,34 @@ def down_book_epub(it):
     toc = []
 
     cs = 0
+    tcs = 0
+    tasks = []
+    # 使用配置的线程数创建线程池
+    if 'xc' in config:
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=config['xc'])
+    else:
+        executor = concurrent.futures.ThreadPoolExecutor()
     pbar = tqdm(total=len(zj))
     for chapter_title, chapter_id in zj.items():
-        f = False
-        if chapter_title in existing_json_content:
-            try:
-                int(existing_json_content[chapter_title])
-                f = True
-            except:
-                zj[chapter_title] = existing_json_content[chapter_title]
-        else:
-            f = True
-        if f:
-            tqdm.write(f'下载 {chapter_title}')
-            chapter_content, _ = down_text(chapter_id)
-            time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
-
-            # 每章都保存 JSON 文件
-            existing_json_content[chapter_title] = chapter_content
-            with open(book_json_path, 'w', encoding='UTF-8') as json_file:
-                json.dump(existing_json_content, json_file, ensure_ascii=False)
-
-            # 添加占位符到每个段落
-            paragraphs = chapter_content.split('\n')
-            formatted_paragraphs = []
-            for paragraph in paragraphs:
-                if paragraph.strip():
-                    formatted_paragraphs.append(config['kgf'] * config['kg'] + paragraph)
-                else:
-                    formatted_paragraphs.append(paragraph)
-            formatted_content = '<br/>'.join(formatted_paragraphs).replace('\n', '<br/>')
-            chapter = epub.EpubHtml(title=chapter_title, file_name=f'{chapter_title}.xhtml',
-                                    content=f'<h1>{chapter_title}</h1><p>{formatted_content}</p>')
-            book.add_item(chapter)
-
-            # 将章节添加到目录列表
-            toc.append(chapter)
-            book.spine.append(chapter)
+        tasks.append(executor.submit(download_chapter_epub, chapter_title, chapter_id, existing_json_content))
+    chapters = []
+    for future in concurrent.futures.as_completed(tasks):
+        chapter_title, chapter_content = future.result()
         pbar.update(1)
+        chapters.append((chapter_title, chapter_content))
+
+    # 按章节标题排序
+    chapters.sort(key=lambda x: list(zj.keys()).index(x[0]))
+
+    for chapter_title, chapter_content in chapters:
+        # 创建章节，确保内容换行并添加段首空格符
+        chapter_content = chapter_content.replace('\n', f'\n{config["kgf"] * config["kg"]}')
+        chapter_content = f'{config["kgf"] * config["kg"]}' + chapter_content  # 添加首段的段首空格符
+        chapter_content = chapter_content.replace('\n', '<br/>')
+        chapter = epub.EpubHtml(title=chapter_title, file_name=f'{chapter_title}.xhtml', content=f'<h1>{chapter_title}</h1><p>{chapter_content}</p>')
+        book.add_item(chapter)
+        toc.append(chapter)
+        book.spine.append(chapter)
 
     # 设置目录
     book.toc = toc
@@ -338,8 +370,8 @@ def down_book_epub(it):
 
     return 's'
 
-
 def down_book_html(it):
+    global zj, cs, book_json_path ,book_dir
     name, zj, zt = down_zj(it)
     if name == 'err':
         return 'err'
@@ -403,36 +435,53 @@ def down_book_html(it):
         toc_file.write(toc_content)
 
     cs = 0
+    tcs = 0
+    tasks = []
+    # 使用配置的线程数创建线程池
+    if 'xc' in config:
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=config['xc'])
+    else:
+        executor = concurrent.futures.ThreadPoolExecutor()
     pbar = tqdm(total=len(zj))
     for chapter_title, chapter_id in zj.items():
-        f = False
-        if chapter_title in existing_json_content:
-            try:
-                int(existing_json_content[chapter_title])
-                f = True
-            except:
-                zj[chapter_title] = existing_json_content[chapter_title]
-        else:
+        tasks.append(executor.submit(download_chapter_html, chapter_title, chapter_id, existing_json_content))
+    for future in concurrent.futures.as_completed(tasks):
+        chapter_title = future.result()
+        pbar.update(1)
+
+    return 's'
+
+
+def download_chapter_html(chapter_title, chapter_id, existing_json_content):
+    global zj, cs, book_json_path ,book_dir
+    f = False
+    if chapter_title in existing_json_content:
+        try:
+            int(existing_json_content[chapter_title])
             f = True
-        if f:
-            tqdm.write(f'下载 {chapter_title}')
-            chapter_content, _ = down_text(chapter_id)
-            time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
-            cs += 1
+        except:
+            zj[chapter_title] = existing_json_content[chapter_title]
+    else:
+        f = True
+    if f:
+        tqdm.write(f'下载 {chapter_title}')
+        chapter_content, _ = down_text(chapter_id)
+        time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
+        cs += 1
 
-            # 每章都保存 JSON 文件
-            existing_json_content[chapter_title] = chapter_content
-            with open(book_json_path, 'w', encoding='UTF-8') as json_file:
-                json.dump(existing_json_content, json_file, ensure_ascii=False)
+        # 每章都保存 JSON 文件
+        existing_json_content[chapter_title] = chapter_content
+        with open(book_json_path, 'w', encoding='UTF-8') as json_file:
+            json.dump(existing_json_content, json_file, ensure_ascii=False)
 
-            # 生成章节 HTML 文件内容，添加 CSS 样式、返回顶部按钮和装饰元素，同时保留换行符
-            formatted_content = chapter_content.replace('\n', '<br/>')
-            next_chapter_button = ""
-            if len(zj) > list(zj.keys()).index(chapter_title) + 1:
-                next_chapter_key = list(zj.keys())[list(zj.keys()).index(chapter_title) + 1]
-                next_chapter_button = f"<button onclick=\"location.href='{next_chapter_key}.html'\">下一章</button>"
+        # 生成章节 HTML 文件内容，添加 CSS 样式、返回顶部按钮和装饰元素，同时保留换行符
+        formatted_content = chapter_content.replace('\n', '<br/>')
+        next_chapter_button = ""
+        if len(zj) > list(zj.keys()).index(chapter_title) + 1:
+            next_chapter_key = list(zj.keys())[list(zj.keys()).index(chapter_title) + 1]
+            next_chapter_button = f"<button onclick=\"location.href='{next_chapter_key}.html'\">下一章</button>"
 
-            chapter_html_content = f"""
+        chapter_html_content = f"""
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -471,10 +520,10 @@ def down_book_html(it):
             body {{
                 background-color: #333;
             }}
-    .left-side,.right-side {{
+   .left-side,.right-side {{
                 background-color: #444;
             }}
-    .content {{
+   .content {{
                 background-color: #222;
                 color: white;
             }}
@@ -539,15 +588,14 @@ def down_book_html(it):
 </html>
 """
 
-            # 将章节内容写入文件
-            with open(os.path.join(book_dir, f"{chapter_title}.html"), "w", encoding='UTF-8') as chapter_file:
-                chapter_file.write(chapter_html_content)
-        pbar.update(1)
-
-    return 's'
+        # 将章节内容写入文件
+        with open(os.path.join(book_dir, f"{chapter_title}.html"), "w", encoding='UTF-8') as chapter_file:
+            chapter_file.write(chapter_html_content)
+    return chapter_title
 
 
 def down_book_latex(it):
+    global zj, cs, book_json_path ,book_dir
     name, zj, zt = down_zj(it)
     if name == 'err':
         return 'err'
@@ -564,29 +612,20 @@ def down_book_latex(it):
             existing_json_content = json.load(json_file)
 
     latex_content = ""
+    cs = 0
+    tcs = 0
+    tasks = []
+    # 使用配置的线程数创建线程池
+    if 'xc' in config:
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=config['xc'])
+    else:
+        executor = concurrent.futures.ThreadPoolExecutor()
+    pbar = tqdm(total=len(zj))
     for chapter_title, chapter_id in zj.items():
-        f = False
-        if chapter_title in existing_json_content:
-            try:
-                int(existing_json_content[chapter_title])
-                f = True
-            except:
-                zj[chapter_title] = existing_json_content[chapter_title]
-        else:
-            f = True
-        if f:
-            tqdm.write(f'下载 {chapter_title}')
-            chapter_content, _ = down_text(chapter_id)
-            time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
-
-            # 每章都保存 JSON 文件
-            existing_json_content[chapter_title] = chapter_content
-            with open(book_json_path, 'w', encoding='UTF-8') as json_file:
-                json.dump(existing_json_content, json_file, ensure_ascii=False)
-
-            # 将章节内容转换为 LaTeX 格式
-            formatted_content = chapter_content.replace('\n', '\\newline ')
-            latex_content += f"\\chapter{{{chapter_title}}}\n{formatted_content}\n"
+        tasks.append(executor.submit(download_chapter_latex, chapter_title, chapter_id, existing_json_content))
+    for future in concurrent.futures.as_completed(tasks):
+        chapter_title = future.result()
+        pbar.update(1)
 
     # 在脚本所在目录下输出 LaTeX 文件
     latex_file_path = os.path.join(script_dir, f'{safe_name}.tex')
@@ -596,11 +635,36 @@ def down_book_latex(it):
     return 's'
 
 
+def download_chapter_latex(chapter_title, chapter_id, existing_json_content):
+    global zj, cs, book_json_path ,book_dir
+    f = False
+    if chapter_title in existing_json_content:
+        try:
+            int(existing_json_content[chapter_title])
+            f = True
+        except:
+            zj[chapter_title] = existing_json_content[chapter_title]
+    else:
+        f = True
+    if f:
+        tqdm.write(f'下载 {chapter_title}')
+        chapter_content, _ = down_text(chapter_id)
+        time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
+
+        # 每章都保存 JSON 文件
+        existing_json_content[chapter_title] = chapter_content
+        with open(book_json_path, 'w', encoding='UTF-8') as json_file:
+            json.dump(existing_json_content, json_file, ensure_ascii=False)
+
+        # 将章节内容转换为 LaTeX 格式
+        formatted_content = chapter_content.replace('\n', '\\newline ')
+        return f"\\chapter{{{chapter_title}}}\n{formatted_content}\n"
+    return None
+
 def select_save_directory():
     root = Tk()
     root.withdraw()  # 隐藏主窗口
     return filedialog.askdirectory(title='请选择保存小说的文件夹')
-
 
 def search():
     while True:
@@ -635,7 +699,6 @@ def search():
             print("请求失败，状态码：", response.status_code)
             break
 
-
 def book2down(inp):
     if str(inp)[:4] == 'http':
         inp = inp.split('?')[0].split('/')[-1]
@@ -663,7 +726,6 @@ def book2down(inp):
     except ValueError:
         return 'err'
 
-
 # script_dir = os.path.dirname(os.path.abspath(__file__))
 script_dir = ''
 
@@ -690,7 +752,7 @@ print('本程序完全免费。\nGithub: https://github.com/ying-ck/fanqienovel-
 
 # 检查并创建配置文件config.json
 config_path = os.path.join(data_dir, 'config.json')
-reset = {'kg': 0, 'kgf': '　', 'delay': [50, 150], 'save_path': '', 'save_mode': 1, 'space_mode': 'halfwidth'}
+reset = {'kg': 0, 'kgf': '　', 'delay': [50, 150], 'save_path': '', 'save_mode': 1, 'space_mode': 'halfwidth', 'xc': 1}
 if not os.path.exists(config_path):
     if os.path.exists('config.json'):
         os.replace('config.json', config_path)
@@ -746,7 +808,7 @@ if os.path.exists(backup_folder_path):
                     shutil.copytree(source_item_path, target_item_path)
         else:
             print("备份文件夹不存在，无法使用备份数据。")
-    elif choice!= '2':
+    elif choice != '2':
         print("输入无效，请重新运行程序并正确输入。")
 else:
     print("程序还未备份")
@@ -766,11 +828,10 @@ def perform_backup():
     for item in os.listdir(source_folder_path):
         source_item_path = os.path.join(source_folder_path, item)
         target_item_path = os.path.join(backup_folder_path, item)
-        if os.path.isfile(source_item_path) and os.path.basename(__file__)!= item:
+        if os.path.isfile(source_item_path) and os.path.basename(__file__) != item:
             shutil.copy2(source_item_path, target_item_path)
-        elif os.path.isdir(source_item_path) and os.path.basename(__file__)!= item and item!='backup':
+        elif os.path.isdir(source_item_path) and os.path.basename(__file__) != item and item != 'backup':
             shutil.copytree(source_item_path, target_item_path)
-
 
 # 主循环
 while True:
@@ -799,8 +860,7 @@ while True:
         print('更新完成')
 
     elif inp == '4':
-        # 设置操作
-        print('请选择项目：1.正文段首占位符 2.章节下载间隔延迟 3.小说保存路径 4.小说保存方式')
+        print('请选择项目：1.正文段首占位符 2.章节下载间隔延迟 3.小说保存路径 4.小说保存方式 5.设置下载线程数')
         inp2 = input()
         if inp2 == '1':
             tmp = input('请输入正文段首占位符(当前为"%s")(直接Enter不更改)：' % config['kgf'])
@@ -831,6 +891,8 @@ while True:
             else:
                 print('请正确输入!')
                 continue
+        elif inp2 == '5':
+            config['xc'] = int(input('请输入下载线程数：'))
         else:
             print('请正确输入!')
             continue
