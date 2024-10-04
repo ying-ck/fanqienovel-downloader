@@ -1,6 +1,9 @@
 # Fanqienovel-downloader
 
 
+## 紧急通知！！！
+番茄小说网页在2024年10月4日22时30分 ~ 46分有网页结构变化，可能最近还有变化，请下载fanqienovel-downloader网页结构测试工具
+
 ### 由于上学的原因，作者无法及时回复，敬请谅解
 ### fanqienovel downloader v1.1.5及以下版本，由于API失效无法使用，现在请使用最新版本（v1.1.6及以上）：
 
