@@ -12,6 +12,8 @@
 
 2.[s.exe](https://github.com/qxqycb/search-novel)用于小说内容搜索，可搭配番茄小说下载器使用
 
+3.[f.exe](https://github.com/qxqycb/novel-spilt)以文件大小来分割小说文件，可搭配番茄小说下载器使用
+
 ## 使用方法
 
 ### v1.1.8版本及以上
