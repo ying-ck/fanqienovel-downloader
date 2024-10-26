@@ -6,6 +6,12 @@
 
 下载番茄小说，通过Python实现
 请勿滥用，且用且珍惜
+
+## 衍生工具
+1.[c.exe](https://github.com/ying-ck/fanqienovel-downloader/releases/tag/v1.1.13)用于检测番茄小说网页结构变化
+
+2.[s.exe](https://github.com/qxqycb/search-novel)用于小说内容搜索，可搭配番茄小说下载器使用
+
 ## 使用方法
 
 ### v1.1.8版本及以上
