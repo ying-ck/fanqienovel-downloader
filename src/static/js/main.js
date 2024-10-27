@@ -152,7 +152,8 @@ async function loadLibrary() {
             <div class="card">
                 <div class="card-body">
                     <h5 class="card-title">${novel.name}</h5>
-                    <div class="btn-group">
+                    ${novel.status ? `<p class="card-text text-muted">状态: ${novel.status}</p>` : ''}
+                    <div class="btn-group mb-2">
                         ${novel.txt_path ? `
                             <a href="/download/${encodeURIComponent(novel.name)}.txt" 
                                class="btn btn-sm btn-outline-primary">TXT</a>
@@ -170,10 +171,59 @@ async function loadLibrary() {
                                class="btn btn-sm btn-outline-primary">LaTeX</a>
                         ` : ''}
                     </div>
+                    <div class="mt-2">
+                        ${novel.novel_id ? `
+                            <button class="btn btn-sm btn-outline-success update-novel-btn w-100" 
+                                    data-novel-id="${novel.novel_id}">
+                                更新此小说
+                            </button>
+                        ` : `
+                            <button class="btn btn-sm btn-outline-secondary w-100" disabled>
+                                无法更新 (ID丢失)
+                            </button>
+                        `}
+                    </div>
                 </div>
             </div>
         </div>
     `).join('');
+
+    // Add update handlers with proper event delegation
+    novelList.addEventListener('click', async (e) => {
+        const updateBtn = e.target.closest('.update-novel-btn');
+        if (updateBtn) {
+            const novelId = updateBtn.dataset.novelId;
+            if (novelId) {
+                await downloadNovel(novelId);
+            }
+        }
+    });
+
+    // Add update all handler
+    const updateAllBtn = document.getElementById('updateAllBtn');
+    if (updateAllBtn) {
+        updateAllBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/update-all', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    if (data.status === 'queued') {
+                        progressModal.show();
+                        logOutput.textContent = `开始更新小说...\n已添加 ${data.count} 本小说到更新队列\n`;
+                    } else if (data.status === 'no_novels') {
+                        alert('没有找到可以更新的小说');
+                    }
+                } else {
+                    throw new Error(data.error || '更新失败');
+                }
+            } catch (error) {
+                alert(error.message || '更新失败，请重试');
+            }
+        });
+    }
 }
 
 // Settings Functionality
@@ -226,18 +276,39 @@ async function processDownloadQueue() {
         logOutput.textContent = '开始下载...\n';
         
         // Wait for download to complete via socket events
-        await new Promise((resolve) => {
+        await new Promise((resolve, reject) => {
+            let timeout;
             const completeHandler = (data) => {
                 if (data.percentage === 100) {
                     socket.off('progress', completeHandler);
-                    setTimeout(resolve, 1000);  // Wait a bit after completion
+                    socket.off('log', errorHandler);
+                    clearTimeout(timeout);
+                    setTimeout(resolve, 1000);
                 }
             };
+            
+            const errorHandler = (data) => {
+                if (data.message && data.message.includes('找不到此书')) {
+                    socket.off('progress', completeHandler);
+                    socket.off('log', errorHandler);
+                    clearTimeout(timeout);
+                    reject(new Error('找不到此书'));
+                }
+            };
+            
+            // Set timeout for 30 seconds
+            timeout = setTimeout(() => {
+                socket.off('progress', completeHandler);
+                socket.off('log', errorHandler);
+                reject(new Error('Download timeout'));
+            }, 30000);
+            
             socket.on('progress', completeHandler);
+            socket.on('log', errorHandler);
         });
         
     } catch (error) {
-        alert('下载失败，请重试');
+        logOutput.textContent += `下载失败: ${error.message}\n`;
     } finally {
         isDownloading = false;
         // Process next download if any
@@ -362,3 +433,4 @@ downloadQueue.shift = function() {
     updateProgressModalTitle();
     return result;
 };
+

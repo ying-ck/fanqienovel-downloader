@@ -19,8 +19,14 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'fanqie_novel_downloader'  # Add secret key
 socketio = SocketIO(app, async_mode='gevent', cors_allowed_origins='*')
 
-# Create a global downloader instance
+# Create downloads directory
+downloads_dir = os.path.join(os.path.dirname(__file__), 'novel_downloads')
+os.makedirs(downloads_dir, exist_ok=True)
+
+# Create a global downloader instance with proper save path
 config = Config()
+config.save_path = downloads_dir  # Set save path to downloads directory
+
 downloader = NovelDownloader(
     config=config,
     progress_callback=lambda current, total, desc='', chapter='': socketio.emit('progress', {
@@ -97,7 +103,7 @@ def download_file(filename):
     if filename.endswith('(html).zip'):
         # Create ZIP file for HTML format
         novel_name = filename[:-9]  # Remove (html).zip
-        html_dir = os.path.join(downloader.config.save_path, f"{novel_name}(html)")
+        html_dir = os.path.join(downloads_dir, f"{novel_name}(html)")
         if os.path.exists(html_dir):
             memory_file = io.BytesIO()
             with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
@@ -114,7 +120,7 @@ def download_file(filename):
                 download_name=filename
             )
     else:
-        filepath = os.path.join(downloader.config.save_path, filename)
+        filepath = os.path.join(downloads_dir, filename)
         if os.path.exists(filepath):
             return send_file(filepath, as_attachment=True)
     return jsonify({'error': 'File not found'}), 404
@@ -127,20 +133,44 @@ def get_component(template):
     except Exception as e:
         return str(e), 404
 
+@app.route('/api/update-all', methods=['POST'])
+def update_all():
+    """Update all novels in the library"""
+    try:
+        # Add to download queue
+        novels = downloader.get_downloaded_novels()
+        update_count = 0
+        for novel in novels:
+            if novel.get('novel_id'):
+                download_queue.put(novel['novel_id'])
+                update_count += 1
+        
+        if update_count > 0:
+            socketio.emit('log', {'message': f'已添加 {update_count} 本小说到更新队列'})
+            return jsonify({'status': 'queued', 'count': update_count})
+        else:
+            socketio.emit('log', {'message': '没有找到可以更新的小说'})
+            return jsonify({'status': 'no_novels'})
+            
+    except Exception as e:
+        error_msg = f'更新失败: {str(e)}'
+        socketio.emit('log', {'message': error_msg})
+        return jsonify({'error': error_msg}), 500
+
 def print_server_info():
     """Print server access information"""
     logger.info("""
 ╭──────────────────────────────────────────────────╮
 │                                                  │
-│   番茄小说下载器 Web 服务已启动                 │
+│   番茄小说下载器 Web 服务已启动                      │
 │                                                  │
-│   请在浏览器中访问:                             │
+│   请在浏览器中访问:                                 │
 │   http://localhost:12930                         │
 │                                                  │
-│   如果需要从其他设备访问，请使用:               │
-│   http://<本机IP>:12930                         │
+│   如果需要从其他设备访问，请使用:                     │
+│   http://<本机IP>:12930                           │
 │                                                  │
-╰───────────────────────────────────────��─────────╯
+╰──────────────────────────────────────────────────╯
     """)
 
 if __name__ == '__main__':

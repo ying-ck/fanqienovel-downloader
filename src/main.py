@@ -242,11 +242,29 @@ class NovelDownloader:
             self.cs = 0
             self.tcs = 0
             
-            # Load existing content if any
+            # Store metadata at the start
+            metadata = {
+                '_metadata': {
+                    'novel_id': str(novel_id),  # Store as string to avoid JSON integer limits
+                    'name': name,
+                    'status': status[0] if status else None,
+                    'last_updated': time.strftime('%Y-%m-%d %H:%M:%S')
+                }
+            }
+            
+            # Load existing content and merge with metadata
             existing_content = {}
             if os.path.exists(self.book_json_path):
                 with open(self.book_json_path, 'r', encoding='UTF-8') as f:
                     existing_content = json.load(f)
+                    # Keep existing chapters but update metadata
+                    if isinstance(existing_content, dict):
+                        existing_content.update(metadata)
+            else:
+                existing_content = metadata
+                # Save initial metadata
+                with open(self.book_json_path, 'w', encoding='UTF-8') as f:
+                    json.dump(existing_content, f, ensure_ascii=False)
 
             total_chapters = len(chapters)
             completed_chapters = 0
@@ -254,7 +272,7 @@ class NovelDownloader:
             # Create CLI progress bar
             with tqdm(total=total_chapters, desc='下载进度') as pbar:
                 # Download chapters
-                content = {}
+                content = existing_content.copy()  # Start with existing content including metadata
                 with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
                     future_to_chapter = {
                         executor.submit(
@@ -272,11 +290,14 @@ class NovelDownloader:
                             chapter_content = future.result()
                             if chapter_content:
                                 content[chapter_title] = chapter_content
+                                # Save progress periodically
+                                if completed_chapters % 5 == 0:
+                                    with open(self.book_json_path, 'w', encoding='UTF-8') as f:
+                                        json.dump(content, f, ensure_ascii=False)
                         except Exception as e:
                             self.log_callback(f'下载章节失败 {chapter_title}: {str(e)}')
                         
                         completed_chapters += 1
-                        # Update both CLI and web progress
                         pbar.update(1)
                         self.progress_callback(
                             completed_chapters,
@@ -285,7 +306,7 @@ class NovelDownloader:
                             chapter_title
                         )
 
-                # Save content
+                # Save final content
                 with open(self.book_json_path, 'w', encoding='UTF-8') as f:
                     json.dump(content, f, ensure_ascii=False)
 
@@ -303,65 +324,77 @@ class NovelDownloader:
 
     def _download_epub(self, novel_id: int) -> str:
         """Download novel in EPUB format"""
-        name, chapters, status = self._get_chapter_list(novel_id)
-        if name == 'err':
-            return 'err'
+        try:
+            name, chapters, status = self._get_chapter_list(novel_id)
+            if name == 'err':
+                return 'err'
 
-        safe_name = self._sanitize_filename(name)
-        self.log_callback(f'\n开始下载《{name}》，状态：{status[0]}')
+            safe_name = self._sanitize_filename(name)
+            self.log_callback(f'\n开始下载《{name}》，状态：{status[0]}')
 
-        # Create EPUB book
-        book = epub.EpubBook()
-        book.set_title(name)
-        book.set_language('zh')
+            # Create EPUB book
+            book = epub.EpubBook()
+            book.set_title(name)
+            book.set_language('zh')
 
-        # Get author info
-        author = self._get_author_info(novel_id)
-        if author:
-            book.add_author(author)
+            # Get author info and cover
+            author = self._get_author_info(novel_id)
+            if author:
+                book.add_author(author)
+            cover_url = self._get_cover_url(novel_id)
+            if cover_url:
+                self._add_cover_to_epub(book, cover_url)
 
-        # Get cover image
-        cover_url = self._get_cover_url(novel_id)
-        if cover_url:
-            self._add_cover_to_epub(book, cover_url)
+            total_chapters = len(chapters)
+            completed_chapters = 0
 
-        # Download chapters
-        epub_chapters = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
-            future_to_chapter = {
-                executor.submit(
-                    self._download_chapter_for_epub,
-                    title,
-                    chapter_id
-                ): title
-                for title, chapter_id in chapters.items()
-            }
+            # Download chapters with progress tracking
+            epub_chapters = []
+            with tqdm(total=total_chapters, desc='下载进度') as pbar:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
+                    future_to_chapter = {
+                        executor.submit(
+                            self._download_chapter_for_epub,
+                            title,
+                            chapter_id
+                        ): title
+                        for title, chapter_id in chapters.items()
+                    }
 
-            total = len(chapters)
-            completed = 0
-            for future in concurrent.futures.as_completed(future_to_chapter):
-                chapter_title = future_to_chapter[future]
-                try:
-                    epub_chapter = future.result()
-                    if epub_chapter:
-                        epub_chapters.append(epub_chapter)
-                        book.add_item(epub_chapter)
-                except Exception as e:
-                    self.log_callback(f'下载章节失败 {chapter_title}: {str(e)}')
-                
-                completed += 1
-                self.progress_callback(completed, total, f'下载进度')
+                    for future in concurrent.futures.as_completed(future_to_chapter):
+                        chapter_title = future_to_chapter[future]
+                        try:
+                            epub_chapter = future.result()
+                            if epub_chapter:
+                                epub_chapters.append(epub_chapter)
+                                book.add_item(epub_chapter)
+                        except Exception as e:
+                            self.log_callback(f'下载章节失败 {chapter_title}: {str(e)}')
+                        
+                        completed_chapters += 1
+                        pbar.update(1)
+                        self.progress_callback(
+                            completed_chapters,
+                            total_chapters,
+                            '下载进度',
+                            chapter_title
+                        )
 
-        # Add navigation
-        book.toc = epub_chapters
-        book.spine = ['nav'] + epub_chapters
-        book.add_item(epub.EpubNcx())
-        book.add_item(epub.EpubNav())
+            # Add navigation
+            book.toc = epub_chapters
+            book.spine = ['nav'] + epub_chapters
+            book.add_item(epub.EpubNcx())
+            book.add_item(epub.EpubNav())
 
-        # Save EPUB file
-        epub_path = os.path.join(self.config.save_path, f'{safe_name}.epub')
-        epub.write_epub(epub_path, book)
-        return 's'
+            # Save EPUB file
+            epub_path = os.path.join(self.config.save_path, f'{safe_name}.epub')
+            epub.write_epub(epub_path, book)
+            return 's'
+
+        finally:
+            if 'completed_chapters' in locals() and 'total_chapters' in locals():
+                if completed_chapters < total_chapters:
+                    self.progress_callback(total_chapters, total_chapters, '下载完成')
 
     def _download_chapter(self, title: str, chapter_id: str, existing_content: Dict) -> Optional[str]:
         """Download a single chapter with retries"""
@@ -485,100 +518,126 @@ class NovelDownloader:
 
     def _download_html(self, novel_id: int) -> str:
         """Download novel in HTML format"""
-        name, chapters, status = self._get_chapter_list(novel_id)
-        if name == 'err':
-            return 'err'
+        try:
+            name, chapters, status = self._get_chapter_list(novel_id)
+            if name == 'err':
+                return 'err'
 
-        safe_name = self._sanitize_filename(name)
-        html_dir = os.path.join(self.config.save_path, f"{safe_name}(html)")
-        os.makedirs(html_dir, exist_ok=True)
+            safe_name = self._sanitize_filename(name)
+            html_dir = os.path.join(self.config.save_path, f"{safe_name}(html)")
+            os.makedirs(html_dir, exist_ok=True)
 
-        self.log_callback(f'\n开始下载《{name}》，状态：{status[0]}')
+            self.log_callback(f'\n开始下载《{name}》，状态：{status[0]}')
 
-        # Create index.html with CSS and responsive design
-        toc_content = self._create_html_index(name, chapters)
-        with open(os.path.join(html_dir, "index.html"), "w", encoding='UTF-8') as f:
-            f.write(toc_content)
+            # Create index.html
+            toc_content = self._create_html_index(name, chapters)
+            with open(os.path.join(html_dir, "index.html"), "w", encoding='UTF-8') as f:
+                f.write(toc_content)
 
-        # Download chapters
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
-            future_to_chapter = {
-                executor.submit(
-                    self._download_chapter_for_html,
-                    title,
-                    chapter_id,
-                    html_dir,
-                    list(chapters.keys())
-                ): title
-                for title, chapter_id in chapters.items()
-            }
+            total_chapters = len(chapters)
+            completed_chapters = 0
 
-            total = len(chapters)
-            completed = 0
-            for future in concurrent.futures.as_completed(future_to_chapter):
-                chapter_title = future_to_chapter[future]
-                try:
-                    future.result()
-                except Exception as e:
-                    self.log_callback(f'下载章节失败 {chapter_title}: {str(e)}')
-                
-                completed += 1
-                self.progress_callback(completed, total, f'下载进度')
+            # Download chapters with progress tracking
+            with tqdm(total=total_chapters, desc='下载进度') as pbar:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
+                    future_to_chapter = {
+                        executor.submit(
+                            self._download_chapter_for_html,
+                            title,
+                            chapter_id,
+                            html_dir,
+                            list(chapters.keys())
+                        ): title
+                        for title, chapter_id in chapters.items()
+                    }
 
-        return 's'
+                    for future in concurrent.futures.as_completed(future_to_chapter):
+                        chapter_title = future_to_chapter[future]
+                        try:
+                            future.result()
+                        except Exception as e:
+                            self.log_callback(f'下载章节失败 {chapter_title}: {str(e)}')
+                        
+                        completed_chapters += 1
+                        pbar.update(1)
+                        self.progress_callback(
+                            completed_chapters,
+                            total_chapters,
+                            '下载进度',
+                            chapter_title
+                        )
+
+            return 's'
+
+        finally:
+            if 'completed_chapters' in locals() and 'total_chapters' in locals():
+                if completed_chapters < total_chapters:
+                    self.progress_callback(total_chapters, total_chapters, '下载完成')
 
     def _download_latex(self, novel_id: int) -> str:
         """Download novel in LaTeX format"""
-        name, chapters, status = self._get_chapter_list(novel_id)
-        if name == 'err':
-            return 'err'
+        try:
+            name, chapters, status = self._get_chapter_list(novel_id)
+            if name == 'err':
+                return 'err'
 
-        safe_name = self._sanitize_filename(name)
-        self.log_callback(f'\n开始下《{name}》，状态：{status[0]}')
+            safe_name = self._sanitize_filename(name)
+            self.log_callback(f'\n开始下载《{name}》，状态：{status[0]}')
 
-        # Create LaTeX document header
-        latex_content = self._create_latex_header(name)
-        
-        # Download chapters
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
-            future_to_chapter = {
-                executor.submit(
-                    self._download_chapter_for_latex,
-                    title,
-                    chapter_id
-                ): title
-                for title, chapter_id in chapters.items()
-            }
-
-            total = len(chapters)
-            completed = 0
+            # Create LaTeX document header
+            latex_content = self._create_latex_header(name)
+            
+            total_chapters = len(chapters)
+            completed_chapters = 0
             chapter_contents = []
-            for future in concurrent.futures.as_completed(future_to_chapter):
-                chapter_title = future_to_chapter[future]
-                try:
-                    chapter_content = future.result()
-                    if chapter_content:
-                        chapter_contents.append((chapter_title, chapter_content))
-                except Exception as e:
-                    self.log_callback(f'下载章节失败 {chapter_title}: {str(e)}')
-                
-                completed += 1
-                self.progress_callback(completed, total, f'下载进度')
 
-        # Sort chapters and add to document
-        chapter_contents.sort(key=lambda x: list(chapters.keys()).index(x[0]))
-        for title, content in chapter_contents:
-            latex_content += self._format_latex_chapter(title, content)
+            # Download chapters with progress tracking
+            with tqdm(total=total_chapters, desc='下载进度') as pbar:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
+                    future_to_chapter = {
+                        executor.submit(
+                            self._download_chapter_for_latex,
+                            title,
+                            chapter_id
+                        ): title
+                        for title, chapter_id in chapters.items()
+                    }
 
-        # Add document footer
-        latex_content += "\n\\end{document}"
+                    for future in concurrent.futures.as_completed(future_to_chapter):
+                        chapter_title = future_to_chapter[future]
+                        try:
+                            chapter_content = future.result()
+                            if chapter_content:
+                                chapter_contents.append((chapter_title, chapter_content))
+                        except Exception as e:
+                            self.log_callback(f'下载章节失败 {chapter_title}: {str(e)}')
+                        
+                        completed_chapters += 1
+                        pbar.update(1)
+                        self.progress_callback(
+                            completed_chapters,
+                            total_chapters,
+                            '下载进度',
+                            chapter_title
+                        )
 
-        # Save LaTeX file
-        latex_path = os.path.join(self.config.save_path, f'{safe_name}.tex')
-        with open(latex_path, 'w', encoding='UTF-8') as f:
-            f.write(latex_content)
+            # Sort chapters and add to document
+            chapter_contents.sort(key=lambda x: list(chapters.keys()).index(x[0]))
+            for title, content in chapter_contents:
+                latex_content += self._format_latex_chapter(title, content)
 
-        return 's'
+            # Add document footer and save
+            latex_content += "\n\\end{document}"
+            latex_path = os.path.join(self.config.save_path, f'{safe_name}.tex')
+            with open(latex_path, 'w', encoding='UTF-8') as f:
+                f.write(latex_content)
+
+            return 's'
+
+        finally:
+            if 'completed_chapters' in locals() and 'total_chapters' in locals():
+                if completed_chapters < total_chapters:
+                    self.progress_callback(total_chapters, total_chapters, '下载完成')
 
     def _create_html_index(self, title: str, chapters: Dict[str, str]) -> str:
         """Create HTML index page with CSS styling"""
@@ -941,14 +1000,38 @@ class NovelDownloader:
         for filename in os.listdir(self.bookstore_dir):
             if filename.endswith('.json'):
                 novel_name = filename[:-5]  # Remove .json extension
-                novels.append({
-                    'name': novel_name,
-                    'json_path': os.path.join(self.bookstore_dir, filename),
-                    'txt_path': os.path.join(self.config.save_path, f'{novel_name}.txt'),
-                    'epub_path': os.path.join(self.config.save_path, f'{novel_name}.epub'),
-                    'html_path': os.path.join(self.config.save_path, f'{novel_name}(html)'),
-                    'latex_path': os.path.join(self.config.save_path, f'{novel_name}.tex')
-                })
+                json_path = os.path.join(self.bookstore_dir, filename)
+                
+                try:
+                    with open(json_path, 'r', encoding='UTF-8') as f:
+                        novel_data = json.load(f)
+                        metadata = novel_data.get('_metadata', {})
+                        
+                        novels.append({
+                            'name': novel_name,
+                            'novel_id': metadata.get('novel_id'),
+                            'status': metadata.get('status'),
+                            'last_updated': metadata.get('last_updated'),
+                            'json_path': json_path,
+                            'txt_path': os.path.join(self.config.save_path, f'{novel_name}.txt'),
+                            'epub_path': os.path.join(self.config.save_path, f'{novel_name}.epub'),
+                            'html_path': os.path.join(self.config.save_path, f'{novel_name}(html)'),
+                            'latex_path': os.path.join(self.config.save_path, f'{novel_name}.tex')
+                        })
+                except Exception as e:
+                    self.log_callback(f"Error reading novel data for {novel_name}: {str(e)}")
+                    # Add novel with minimal info if metadata can't be read
+                    novels.append({
+                        'name': novel_name,
+                        'novel_id': None,
+                        'status': None,
+                        'last_updated': None,
+                        'json_path': json_path,
+                        'txt_path': os.path.join(self.config.save_path, f'{novel_name}.txt'),
+                        'epub_path': os.path.join(self.config.save_path, f'{novel_name}.epub'),
+                        'html_path': os.path.join(self.config.save_path, f'{novel_name}(html)'),
+                        'latex_path': os.path.join(self.config.save_path, f'{novel_name}.tex')
+                    })
         return novels
 
     def backup_data(self, backup_dir: str):
