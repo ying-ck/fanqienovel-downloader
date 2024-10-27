@@ -18,6 +18,11 @@
 
 ### Web 版
 
+<img src="https://github.com/user-attachments/assets/b81aa6d7-3349-4167-ad62-cb6caffb3cf0" width="500">
+<img src="https://github.com/user-attachments/assets/b8f469ed-98dd-4ea6-9a90-901c7644f9a8" width="500">
+<img src="https://github.com/user-attachments/assets/4e667d93-646f-4b1e-bcec-a869520845b3" width="500">
+
+
 Web版实现的功能
 - 网页服务器下载完直接让你下载小说文件到本地，所以能远程放在容器或虚拟机中运行。
 - 有进度条，漂亮！
