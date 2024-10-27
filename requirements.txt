@@ -3,9 +3,9 @@ requests
 urllib3
 lxml
 ebooklib
-
 Flask
 Flask-SocketIO
-eventlet
-tqdm
+gevent
+gevent-websocket
 beautifulsoup4
+

@@ -248,49 +248,58 @@ class NovelDownloader:
                 with open(self.book_json_path, 'r', encoding='UTF-8') as f:
                     existing_content = json.load(f)
 
-            # Reset progress bar
-            if hasattr(self, '_pbar'):
-                self._pbar.close()
-            self._pbar = tqdm(total=len(chapters), desc='下载进度')
+            total_chapters = len(chapters)
+            completed_chapters = 0
 
-            # Download chapters
-            content = {}
-            with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
-                future_to_chapter = {
-                    executor.submit(
-                        self._download_chapter, 
-                        title, 
-                        chapter_id, 
-                        existing_content
-                    ): title 
-                    for title, chapter_id in chapters.items()
-                }
+            # Create CLI progress bar
+            with tqdm(total=total_chapters, desc='下载进度') as pbar:
+                # Download chapters
+                content = {}
+                with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
+                    future_to_chapter = {
+                        executor.submit(
+                            self._download_chapter, 
+                            title, 
+                            chapter_id, 
+                            existing_content
+                        ): title 
+                        for title, chapter_id in chapters.items()
+                    }
 
-                for future in concurrent.futures.as_completed(future_to_chapter):
-                    chapter_title = future_to_chapter[future]
-                    try:
-                        chapter_content = future.result()
-                        if chapter_content:
-                            content[chapter_title] = chapter_content
-                    except Exception as e:
-                        self.log_callback(f'下载章节失败 {chapter_title}: {str(e)}')
-                    
-                    self._pbar.update(1)  # Update progress bar directly
+                    for future in concurrent.futures.as_completed(future_to_chapter):
+                        chapter_title = future_to_chapter[future]
+                        try:
+                            chapter_content = future.result()
+                            if chapter_content:
+                                content[chapter_title] = chapter_content
+                        except Exception as e:
+                            self.log_callback(f'下载章节失败 {chapter_title}: {str(e)}')
+                        
+                        completed_chapters += 1
+                        # Update both CLI and web progress
+                        pbar.update(1)
+                        self.progress_callback(
+                            completed_chapters,
+                            total_chapters,
+                            '下载进度',
+                            chapter_title
+                        )
 
-            # Save content
-            with open(self.book_json_path, 'w', encoding='UTF-8') as f:
-                json.dump(content, f, ensure_ascii=False)
+                # Save content
+                with open(self.book_json_path, 'w', encoding='UTF-8') as f:
+                    json.dump(content, f, ensure_ascii=False)
 
-            # Generate output file
-            if self.config.save_mode == SaveMode.SINGLE_TXT:
-                return self._save_single_txt(safe_name, content)
-            else:
-                return self._save_split_txt(safe_name, content)
+                # Generate output file
+                if self.config.save_mode == SaveMode.SINGLE_TXT:
+                    return self._save_single_txt(safe_name, content)
+                else:
+                    return self._save_split_txt(safe_name, content)
 
         finally:
-            # Cleanup
-            if hasattr(self, '_pbar'):
-                self._pbar.close()
+            # Send 100% completion if not already sent
+            if 'completed_chapters' in locals() and 'total_chapters' in locals():
+                if completed_chapters < total_chapters:
+                    self.progress_callback(total_chapters, total_chapters, '下载完成')
 
     def _download_epub(self, novel_id: int) -> str:
         """Download novel in EPUB format"""
