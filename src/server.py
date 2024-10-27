@@ -10,6 +10,8 @@ import queue
 import zipfile
 import io
 import logging
+from collections import deque
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -40,24 +42,30 @@ downloader = NovelDownloader(
     log_callback=lambda msg: socketio.emit('log', {'message': msg})
 )
 
-# Queue for download tasks
-download_queue = queue.Queue()
+class DownloadQueue:
+    def __init__(self):
+        self.queue = deque()
+        self.lock = threading.Lock()
+        self.current_download = None
+        
+    def add(self, novel_id):
+        with self.lock:
+            self.queue.append(novel_id)
+            
+    def get_next(self):
+        with self.lock:
+            return self.queue.popleft() if self.queue else None
+            
+    def get_status(self):
+        with self.lock:
+            return {
+                'queue_length': len(self.queue),
+                'current_download': self.current_download,
+                'queue_items': list(self.queue)
+            }
 
-def download_worker():
-    while True:
-        task = download_queue.get()
-        if task is None:
-            break
-        novel_id = task
-        try:
-            downloader.download_novel(novel_id)
-        except Exception as e:
-            socketio.emit('log', {'message': f'下载失败: {str(e)}'})
-        download_queue.task_done()
-
-# Start worker thread
-worker_thread = threading.Thread(target=download_worker, daemon=True)
-worker_thread.start()
+# 创建全局下载队列实例
+download_queue = DownloadQueue()
 
 @app.route('/')
 def index():
@@ -70,7 +78,8 @@ def list_novels():
 
 @app.route('/api/download/<novel_id>')
 def download_novel(novel_id):
-    download_queue.put(novel_id)
+    download_queue.add(novel_id)
+    socketio.emit('queue_update', download_queue.get_status())
     return jsonify({'status': 'queued'})
 
 @app.route('/api/search')
@@ -142,7 +151,7 @@ def update_all():
         update_count = 0
         for novel in novels:
             if novel.get('novel_id'):
-                download_queue.put(novel['novel_id'])
+                download_queue.add(novel['novel_id'])
                 update_count += 1
         
         if update_count > 0:
@@ -156,6 +165,40 @@ def update_all():
         error_msg = f'更新失败: {str(e)}'
         socketio.emit('log', {'message': error_msg})
         return jsonify({'error': error_msg}), 500
+
+@app.route('/api/queue/status')
+def get_queue_status():
+    return jsonify(download_queue.get_status())
+
+@app.route('/api/queue/add/<novel_id>', methods=['POST'])
+def add_to_queue(novel_id):
+    download_queue.add(novel_id)
+    # 广播队列更新给所有客户端
+    socketio.emit('queue_update', download_queue.get_status())
+    return jsonify({'status': 'success'})
+
+def process_download_queue():
+    while True:
+        novel_id = download_queue.get_next()
+        if novel_id:
+            download_queue.current_download = novel_id
+            socketio.emit('queue_update', download_queue.get_status())
+            try:
+                # 在应用上下文中执行下载逻辑
+                with app.app_context():
+                    # 直接调用下载器而不是调用路由函数
+                    try:
+                        downloader.download_novel(novel_id)
+                        socketio.emit('log', {'message': f'小说 {novel_id} 下载完成'})
+                    except Exception as e:
+                        socketio.emit('log', {'message': f'下载失败: {str(e)}'})
+            finally:
+                download_queue.current_download = None
+                socketio.emit('queue_update', download_queue.get_status())
+        time.sleep(1)
+
+# 启动队列处理线程
+threading.Thread(target=process_download_queue, daemon=True).start()
 
 def print_server_info():
     """Print server access information"""

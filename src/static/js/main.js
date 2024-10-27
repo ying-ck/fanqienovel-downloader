@@ -26,9 +26,8 @@ socket.on('progress', (data) => {
     if (data.percentage === 100) {
         setTimeout(() => {
             logOutput.textContent += '下载完成！\n';
-            if (downloadQueue.length > 0) {
-                logOutput.textContent += `队列中还有 ${downloadQueue.length} 本小说等待下载...\n`;
-            }
+            // 移除对 downloadQueue 的引用
+            fetchQueueStatus(); // 改为从服务器获取最新队列状态
         }, 1000);
     }
 });
@@ -258,77 +257,96 @@ async function loadSettings() {
 
 // Add download queue management
 let isDownloading = false;
-const downloadQueue = [];
 
-async function processDownloadQueue() {
-    if (isDownloading || downloadQueue.length === 0) return;
-    
-    isDownloading = true;
-    const novelId = downloadQueue.shift();
-    
+// 更新下载函数
+async function downloadNovel(novelId) {
     try {
-        showProgressBtn.style.display = 'none';
-        progressModal.show();
-        const response = await fetch(`/api/download/${novelId}`);
-        if (!response.ok) {
-            throw new Error('Download failed');
+        // 先检查当前队列状态
+        const queueResponse = await fetch('/api/queue/status');
+        const queueStatus = await queueResponse.json();
+        
+        if (queueStatus.queue_length > 0 || queueStatus.current_download) {
+            const choice = confirm('已有小说正在下载或在队列中。是否将此小说加入下载队列？');
+            if (!choice) {
+                return;
+            }
         }
-        logOutput.textContent = '开始下载...\n';
-        
-        // Wait for download to complete via socket events
-        await new Promise((resolve, reject) => {
-            let timeout;
-            const completeHandler = (data) => {
-                if (data.percentage === 100) {
-                    socket.off('progress', completeHandler);
-                    socket.off('log', errorHandler);
-                    clearTimeout(timeout);
-                    setTimeout(resolve, 1000);
-                }
-            };
-            
-            const errorHandler = (data) => {
-                if (data.message && data.message.includes('找不到此书')) {
-                    socket.off('progress', completeHandler);
-                    socket.off('log', errorHandler);
-                    clearTimeout(timeout);
-                    reject(new Error('找不到此书'));
-                }
-            };
-            
-            // Set timeout for 30 seconds
-            timeout = setTimeout(() => {
-                socket.off('progress', completeHandler);
-                socket.off('log', errorHandler);
-                reject(new Error('Download timeout'));
-            }, 30000);
-            
-            socket.on('progress', completeHandler);
-            socket.on('log', errorHandler);
+
+        const response = await fetch(`/api/queue/add/${novelId}`, {
+            method: 'POST'
         });
+        if (!response.ok) {
+            throw new Error('Failed to add to queue');
+        }
         
+        progressModal.show();
+        logOutput.textContent += `已将小说 ${novelId} 添加到下载队列\n`;
     } catch (error) {
-        logOutput.textContent += `下载失败: ${error.message}\n`;
-    } finally {
-        isDownloading = false;
-        // Process next download if any
-        processDownloadQueue();
+        alert('添加到下载队列失败：' + error.message);
     }
 }
 
-async function downloadNovel(novelId) {
-    if (isDownloading) {
-        const choice = confirm('已有小说正在下载中。是否将此小说加入下载队列？');
-        if (choice) {
-            downloadQueue.push(novelId);
-            alert('已加入下载队列，将在当前下载完成后自动开始');
-        }
+// 添加队列状态更新监听
+socket.on('queue_update', (queueStatus) => {
+    // 更新UI显示
+    updateQueueDisplay(queueStatus);
+});
+
+function updateQueueDisplay(status) {
+    const modalTitle = document.querySelector('.modal-title');
+    const queueStatusDiv = document.querySelector('.queue-status');
+    const showProgressBtn = document.getElementById('showProgress');
+    
+    if (!queueStatusDiv) {
+        console.error('Queue status element not found');
         return;
     }
     
-    downloadQueue.push(novelId);
-    processDownloadQueue();
+    // 更新队列状态显示
+    if (status.current_download || status.queue_length > 0) {
+        modalTitle.textContent = `下载进度 (队列中: ${status.queue_length})`;
+        let statusText = '';
+        if (status.current_download) {
+            statusText += `正在下载: ${status.current_download}\n`;
+        }
+        if (status.queue_length > 0) {
+            statusText += `队列中还有 ${status.queue_length} 本小说等待下载`;
+        }
+        queueStatusDiv.textContent = statusText;
+        
+        // 如果进度模态框是隐藏的，显示悬浮按钮
+        if (!progressModal._isShown) {
+            showProgressBtn.style.display = 'block';
+        }
+    } else {
+        modalTitle.textContent = '下载进度';
+        queueStatusDiv.textContent = '';
+        // 如果没有下载任务，隐藏悬浮按钮
+        showProgressBtn.style.display = 'none';
+    }
 }
+
+// 页面加载时获取初始队列状态
+async function fetchQueueStatus() {
+    try {
+        const response = await fetch('/api/queue/status');
+        if (!response.ok) {
+            throw new Error('Failed to fetch queue status');
+        }
+        const status = await response.json();
+        updateQueueDisplay(status);
+        
+        // 移除自动显示模态框的逻辑
+        // if (status.current_download || status.queue_length > 0) {
+        //     progressModal.show();
+        // }
+    } catch (error) {
+        console.error('Failed to fetch queue status:', error);
+    }
+}
+
+// 添加定期检查队列状态的功能
+setInterval(fetchQueueStatus, 5000); // 每5秒检查一次队列状态
 
 // Add error handling for settings
 async function saveSettings(formData) {
@@ -352,7 +370,19 @@ async function saveSettings(formData) {
 }
 
 // Initialize the search page by default
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // 确保进度模态框中有队列状态显示区域
+    const modalBody = document.querySelector('.modal-body');
+    if (!modalBody.querySelector('.queue-status')) {
+        const queueStatus = document.createElement('div');
+        queueStatus.className = 'queue-status mt-2';
+        modalBody.insertBefore(queueStatus, modalBody.firstChild);
+    }
+
+    // 获取初始队列状态
+    await fetchQueueStatus();
+    
+    // 然后加载搜索页面
     document.querySelector('[data-page="search"]').click();
 });
 
@@ -362,7 +392,11 @@ const minimizeProgressBtn = document.getElementById('minimizeProgress');
 
 minimizeProgressBtn.addEventListener('click', () => {
     progressModal.hide();
-    showProgressBtn.style.display = 'block';
+    // 如果有正在进行的下载或队列中有任务，显示悬浮按钮
+    const queueStatusDiv = document.querySelector('.queue-status');
+    if (queueStatusDiv && queueStatusDiv.textContent.trim()) {
+        showProgressBtn.style.display = 'block';
+    }
 });
 
 showProgressBtn.addEventListener('click', () => {
@@ -370,67 +404,11 @@ showProgressBtn.addEventListener('click', () => {
     showProgressBtn.style.display = 'none';
 });
 
-// Update socket event handler to manage download state
-socket.on('progress', (data) => {
-    // Update progress bar width
-    progressBar.style.width = `${data.percentage}%`;
-    progressBar.setAttribute('aria-valuenow', data.percentage);
-    
-    // Update progress bar text
-    progressBar.textContent = data.text || `${Math.round(data.percentage)}%`;
-    
-    // Update chapter info if available
-    if (data.chapter) {
-        currentChapter.textContent = `当前章节: ${data.chapter}`;
-    }
-    
-    // If download is complete (100%)
-    if (data.percentage === 100) {
-        setTimeout(() => {
-            logOutput.textContent += '下载完成！\n';
-            if (downloadQueue.length > 0) {
-                logOutput.textContent += `队列中还有 ${downloadQueue.length} 本小说等待下载...\n`;
-            }
-        }, 1000);
+// 监听模态框的隐藏事件
+progressModal._element.addEventListener('hidden.bs.modal', () => {
+    // 检查是否有正在进行的下载或队列中的任务
+    const queueStatusDiv = document.querySelector('.queue-status');
+    if (queueStatusDiv && queueStatusDiv.textContent.trim()) {
+        showProgressBtn.style.display = 'block';
     }
 });
-
-// Update progress modal to show queue status
-function updateProgressModalTitle() {
-    const modalTitle = document.querySelector('.modal-title');
-    if (downloadQueue.length > 0) {
-        modalTitle.textContent = `下载进度 (队列中: ${downloadQueue.length})`;
-    } else {
-        modalTitle.textContent = '下载进度';
-    }
-}
-
-// Add queue status to the progress modal
-const modalBody = document.querySelector('.modal-body');
-const queueStatus = document.createElement('div');
-queueStatus.className = 'queue-status mt-2';
-modalBody.insertBefore(queueStatus, modalBody.firstChild);
-
-function updateQueueStatus() {
-    queueStatus.textContent = downloadQueue.length > 0 
-        ? `下载队列中还有 ${downloadQueue.length} 本小说` 
-        : '';
-}
-
-// Update the queue status whenever it changes
-const originalPush = downloadQueue.push;
-downloadQueue.push = function(...args) {
-    const result = originalPush.apply(this, args);
-    updateQueueStatus();
-    updateProgressModalTitle();
-    return result;
-};
-
-const originalShift = downloadQueue.shift;
-downloadQueue.shift = function() {
-    const result = originalShift.apply(this);
-    updateQueueStatus();
-    updateProgressModalTitle();
-    return result;
-};
-
