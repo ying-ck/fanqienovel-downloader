@@ -16,37 +16,7 @@
 
 ## 使用方法
 
-### Web 版
-
-<img src="https://github.com/user-attachments/assets/b81aa6d7-3349-4167-ad62-cb6caffb3cf0" width="500">
-<img src="https://github.com/user-attachments/assets/b8f469ed-98dd-4ea6-9a90-901c7644f9a8" width="500">
-<img src="https://github.com/user-attachments/assets/4e667d93-646f-4b1e-bcec-a869520845b3" width="500">
-
-
-Web版实现的功能
-- 网页服务器下载完直接让你下载小说文件到本地，所以能远程放在容器或虚拟机中运行。
-- 有进度条，漂亮！
-- 能透过 id 下载小说，也能用名字搜索小说，更能更新之前下载的小说。
-- 简洁的 UI 界面。
-- 队列设计，可以把好几本书加入队列，批量下载。
-- (而且把原本的代码重构了一下，至于变好还是变坏我不好说，主要是之前的代码搞成web 不太方便)
-
-Web 版目前没有 exe 文件，你有两种方式运行 web 版。
-
-1. Python 运行
-
-用 Git 克隆这个项目或直接下载项目的zip并解压。进入项目文件夹，新建虚拟环境，并用 `pip install -r requirements.txt` 来安装这个项目的 python 依赖。
-
-接着进入`src`目录，用python 运行 `server.py`，并根据指示用浏览器开启 `http://localhost:12930`。
-
-2. Docker 运行
-
-用 Git 克隆这个项目或直接下载项目的zip并解压。进入项目文件夹。
-
-直接使用 `docker compose up` (或是 `docker compose up -d` 在后台运行) 构建并启动镜像。启动后用浏览器访问 `http://localhost:12930`。
-
-下载的小说和个人数据 (`data` 文件夹) 会存在docker 卷里面，分别叫做 `fanqie_data` 和 `fanqie_downloads`。如果你想修改成某个特定的目录，可以修改 `docker-compose.yaml` 文件中的持久化用户数据部分。
-
+###本地程序
 
 ### v1.1.8版本及以上
 
@@ -110,6 +80,37 @@ urllib3. exceptions. MaxRetryError: HTTPSConnectionPool(host='fanqienovel. com',
 ## 注意
 
 从旧版本(v1.00 ~ v1.05)升级到v1.0.6及更高版本需将json格式小说("(你下载的小说名).json")放入程序同文件夹下data/bookstore文件夹中，否则无法检测到原来的小说文件，将重新下载一次
+
+### Web 版
+
+<img src="https://github.com/user-attachments/assets/b81aa6d7-3349-4167-ad62-cb6caffb3cf0" width="500">
+<img src="https://github.com/user-attachments/assets/b8f469ed-98dd-4ea6-9a90-901c7644f9a8" width="500">
+<img src="https://github.com/user-attachments/assets/4e667d93-646f-4b1e-bcec-a869520845b3" width="500">
+
+
+Web版实现的功能
+- 网页服务器下载完直接让你下载小说文件到本地，所以能远程放在容器或虚拟机中运行。
+- 有进度条，漂亮！
+- 能透过 id 下载小说，也能用名字搜索小说，更能更新之前下载的小说。
+- 简洁的 UI 界面。
+- 队列设计，可以把好几本书加入队列，批量下载。
+- (而且把原本的代码重构了一下，至于变好还是变坏我不好说，主要是之前的代码搞成web 不太方便)
+
+Web 版目前没有 exe 文件，你有两种方式运行 web 版。
+
+1. Python 运行
+
+用 Git 克隆这个项目或直接下载项目的zip并解压。进入项目文件夹，新建虚拟环境，并用 `pip install -r requirements.txt` 来安装这个项目的 python 依赖。
+
+接着进入`src`目录，用python 运行 `server.py`，并根据指示用浏览器开启 `http://localhost:12930`。
+
+2. Docker 运行
+
+用 Git 克隆这个项目或直接下载项目的zip并解压。进入项目文件夹。
+
+直接使用 `docker compose up` (或是 `docker compose up -d` 在后台运行) 构建并启动镜像。启动后用浏览器访问 `http://localhost:12930`。
+
+下载的小说和个人数据 (`data` 文件夹) 会存在docker 卷里面，分别叫做 `fanqie_data` 和 `fanqie_downloads`。如果你想修改成某个特定的目录，可以修改 `docker-compose.yaml` 文件中的持久化用户数据部分。
 
 ## 集思广益
 
