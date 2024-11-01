@@ -120,7 +120,7 @@ Before using this program, please ensure compliance with relevant laws and regul
 
 ## 作者
 
-- 作者：Yck (ying-ck) & Yqy(qxqycb)
+- 作者：Yck (ying-ck) & Yqy(qxqycb) & Lingo(lingo34)
 
 ## Star趋势
 
