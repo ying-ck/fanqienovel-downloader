@@ -22,7 +22,7 @@
 
 1. 输入小说目录页面完整链接或者id下载
 1. 输入id或链接直接下载
-2. 输入1以更新，读取 record.json 中的id进行更新
+2. 输入1以更新，读取 `record.json` 中的id进行更新
 3. 输入2进行搜索
 4. 输入3进行批量下载
 5. 输入4进入设置，可调整正文段首占位符，调整延时，小说存储位置，保存模式
@@ -32,7 +32,7 @@
 
 ### 目前(v1.1.14版本)保存方式支持：1.整本保存 2.分章保存 3.EPUB电子书格式保存 4.html格式保存 5.Latex格式保存
 
-### 请注意！修改了设置中的每一个选项都会覆盖原来的数据，请仔细查看后在做出选择。若想修复默认选项，请将config.json文件删除
+### 请注意！修改了设置中的每一个选项都会覆盖原来的数据，请仔细查看后在做出选择。若想修复默认选项，请将`config.json`文件删除
 
 ## fanqienovel downloader 在各个系统上的运行情况:
 | 系统(System) | 运行情况(Operation) |
@@ -53,12 +53,12 @@
 
 ## Q&A
 ### Q1：
-报错：The above exception was the direct cause of the following exception:
+报错：` The above exception was the direct cause of the following exception:
 urllib3.exceptions.ProxyError: ('Unable to connect to proxy', FileNotFoundError(2, 'No such file or directory')) The above exception was the direct cause of the following exception:
 Traceback (most recent call last):
 File "requests\adapters. py", line 667, in send
 File "urllib3\connectionpool. py", line 843, in urlopen File "urllib3\util\retry. py", line 519, in increment
-urllib3. exceptions. MaxRetryError: HTTPSConnectionPool(host='fanqienovel. com', port=443): Max retries exceeded with url: /page/7143038691944959011 (Caused by ProxyError('Unable to connect to proxy', FileNotFoundError(2, 'No such file or dire ctory')))
+urllib3. exceptions. MaxRetryError: HTTPSConnectionPool(host='fanqienovel. com', port=443): Max retries exceeded with url: /page/7143038691944959011 (Caused by ProxyError('Unable to connect to proxy', FileNotFoundError(2, 'No such file or dire ctory'))) `
 ......
 ### A1：
 网络错误，请检查网络连接(如：关闭代理、加速)
@@ -85,7 +85,7 @@ Web 版目前没有 exe 文件，你有两种方式运行 web 版。
 用 Git 克隆这个项目或直接下载项目的zip并解压。进入项目文件夹，新建虚拟环境，并用 `pip install -r requirements.txt` 来安装这个项目的 python 依赖。
 
 接着进入`src`目录，用python 运行 `server.py`，并根据指示用浏览器开启 `http://localhost:12930`。
-(注意：python版本3.8及以下版本下载项目zip或git时，src目录中,将原来的main.py删除，再把main2.py名称改为main.py)
+(注意：`python`版本3.8及以下版本下载项目`zip`或`git`时，`src`目录中,将原来的`main.py`删除，再把`main2.py`名称改为`main.py`)
 
 2. Docker 运行
 
