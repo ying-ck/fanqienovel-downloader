@@ -85,6 +85,7 @@ Web 版目前没有 exe 文件，你有两种方式运行 web 版。
 用 Git 克隆这个项目或直接下载项目的zip并解压。进入项目文件夹，新建虚拟环境，并用 `pip install -r requirements.txt` 来安装这个项目的 python 依赖。
 
 接着进入`src`目录，用python 运行 `server.py`，并根据指示用浏览器开启 `http://localhost:12930`。
+(注意：python版本3.8及以下版本下载项目zip或git时，src目录中,将原来的main.py删除，再把main2.py名称改为main.py)
 
 2. Docker 运行
 
