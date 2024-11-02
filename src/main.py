@@ -228,7 +228,7 @@ class NovelDownloader:
             if name == 'err':
                 return 'err'
 
-            safe_name = utils._sanitize_filename(name)
+            safe_name = utils.sanitize_filename(name)
             self.log_callback(f'\n开始下载《{name}》，状态：{status[0]}')
 
             # Set book_json_path for the current download
@@ -326,7 +326,7 @@ class NovelDownloader:
             if name == 'err':
                 return 'err'
 
-            safe_name = utils._sanitize_filename(name)
+            safe_name = utils.sanitize_filename(name)
             self.log_callback(f'\n开始下载《{name}》，状态：{status[0]}')
 
             # Create EPUB book
@@ -484,7 +484,7 @@ class NovelDownloader:
         for title, chapter_content in content.items():
             chapter_path = os.path.join(
                 output_dir,
-                f'{utils._sanitize_filename(title)}.txt'
+                f'{utils.sanitize_filename(title)}.txt'
             )
             with open(chapter_path, 'w', encoding='UTF-8') as f:
                 if self.config.kg == 0:
@@ -520,7 +520,7 @@ class NovelDownloader:
             if name == 'err':
                 return 'err'
 
-            safe_name = utils._sanitize_filename(name)
+            safe_name = utils.sanitize_filename(name)
             html_dir = os.path.join(self.config.save_path, f"{safe_name}(html)")
             os.makedirs(html_dir, exist_ok=True)
 
@@ -578,7 +578,7 @@ class NovelDownloader:
             if name == 'err':
                 return 'err'
 
-            safe_name = utils._sanitize_filename(name)
+            safe_name = utils.sanitize_filename(name)
             self.log_callback(f'\n开始下载《{name}》，状态：{status[0]}')
 
             # Create LaTeX document header
@@ -668,12 +668,12 @@ class NovelDownloader:
             return
 
         current_index = all_titles.index(title)
-        prev_link = f'<a href="{utils._sanitize_filename(all_titles[current_index-1])}.html">上一章</a>' if current_index > 0 else ''
-        next_link = f'<a href="{utils._sanitize_filename(all_titles[current_index+1])}.html">下一章</a>' if current_index < len(all_titles)-1 else ''
+        prev_link = f'<a href="{utils.sanitize_filename(all_titles[current_index-1])}.html">上一章</a>' if current_index > 0 else ''
+        next_link = f'<a href="{utils.sanitize_filename(all_titles[current_index+1])}.html">下一章</a>' if current_index < len(all_titles)-1 else ''
 
         html_content = html_format.content(title,content,prev_link,next_link,self.config)
         
-        with open(os.path.join(output_dir, f"{utils._sanitize_filename(title)}.html"), "w", encoding='UTF-8') as f:
+        with open(os.path.join(output_dir, f"{utils.sanitize_filename(title)}.html"), "w", encoding='UTF-8') as f:
             f.write(html_content)
 
     def _download_chapter_for_latex(self, title: str, chapter_id: str) -> Optional[str]:
