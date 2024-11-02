@@ -4,16 +4,13 @@ from lxml import etree
 from ebooklib import epub
 from tqdm import tqdm
 from bs4 import BeautifulSoup
-import json
-import time
-import random
-import os
-import platform
-import shutil
+import json, time, random, os, platform, shutil
 import concurrent.futures
 from typing import Callable, Optional, Dict, List, Union
 from dataclasses import dataclass
 from enum import Enum
+
+import html_format, utils
 
 class SaveMode(Enum):
     SINGLE_TXT = 1
@@ -231,7 +228,7 @@ class NovelDownloader:
             if name == 'err':
                 return 'err'
 
-            safe_name = self._sanitize_filename(name)
+            safe_name = utils._sanitize_filename(name)
             self.log_callback(f'\n开始下载《{name}》，状态：{status[0]}')
 
             # Set book_json_path for the current download
@@ -329,7 +326,7 @@ class NovelDownloader:
             if name == 'err':
                 return 'err'
 
-            safe_name = self._sanitize_filename(name)
+            safe_name = utils._sanitize_filename(name)
             self.log_callback(f'\n开始下载《{name}》，状态：{status[0]}')
 
             # Create EPUB book
@@ -465,11 +462,11 @@ class NovelDownloader:
         chapter.content = f'<h1>{title}</h1><p>{formatted_content}</p>'
         return chapter
 
-    def _save_single_txt(self, name: str, content: Dict) -> str:
+    def _save_single_txt(self, name: str, content: dict) -> str:
         """Save all chapters to a single TXT file"""
         output_path = os.path.join(self.config.save_path, f'{name}.txt')
         fg = '\n' + self.config.kgf * self.config.kg
-        
+
         with open(output_path, 'w', encoding='UTF-8') as f:
             for title, chapter_content in content.items():
                 f.write(f'\n{title}{fg}')
@@ -486,8 +483,8 @@ class NovelDownloader:
 
         for title, chapter_content in content.items():
             chapter_path = os.path.join(
-                output_dir, 
-                f'{self._sanitize_filename(title)}.txt'
+                output_dir,
+                f'{utils._sanitize_filename(title)}.txt'
             )
             with open(chapter_path, 'w', encoding='UTF-8') as f:
                 if self.config.kg == 0:
@@ -523,14 +520,14 @@ class NovelDownloader:
             if name == 'err':
                 return 'err'
 
-            safe_name = self._sanitize_filename(name)
+            safe_name = utils._sanitize_filename(name)
             html_dir = os.path.join(self.config.save_path, f"{safe_name}(html)")
             os.makedirs(html_dir, exist_ok=True)
 
             self.log_callback(f'\n开始下载《{name}》，状态：{status[0]}')
 
             # Create index.html
-            toc_content = self._create_html_index(name, chapters)
+            toc_content = html_format.index(name,chapters)
             with open(os.path.join(html_dir, "index.html"), "w", encoding='UTF-8') as f:
                 f.write(toc_content)
 
@@ -581,7 +578,7 @@ class NovelDownloader:
             if name == 'err':
                 return 'err'
 
-            safe_name = self._sanitize_filename(name)
+            safe_name = utils._sanitize_filename(name)
             self.log_callback(f'\n开始下载《{name}》，状态：{status[0]}')
 
             # Create LaTeX document header
@@ -639,71 +636,6 @@ class NovelDownloader:
                 if completed_chapters < total_chapters:
                     self.progress_callback(total_chapters, total_chapters, '下载完成')
 
-    def _create_html_index(self, title: str, chapters: Dict[str, str]) -> str:
-        """Create HTML index page with CSS styling"""
-        return f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title} - 目录</title>
-    <style>
-        :root {{
-            --bg-color: #f5f5f5;
-            --text-color: #333;
-            --link-color: #007bff;
-            --hover-color: #0056b3;
-        }}
-        @media (prefers-color-scheme: dark) {{
-            :root {{
-                --bg-color: #222;
-                --text-color: #fff;
-                --link-color: #66b0ff;
-                --hover-color: #99ccff;
-            }}
-        }}
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-        }}
-        h1 {{
-            text-align: center;
-            margin-bottom: 30px;
-        }}
-        .toc {{
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
-        }}
-        .toc a {{
-            color: var(--link-color);
-            text-decoration: none;
-            display: block;
-            padding: 8px 0;
-            transition: all 0.2s;
-        }}
-        .toc a:hover {{
-            color: var(--hover-color);
-            transform: translateX(10px);
-        }}
-    </style>
-</head>
-<body>
-    <h1>{title}</h1>
-    <div class="toc">
-        {''.join(f'<a href="{self._sanitize_filename(title)}.html">{title}</a>' for title in chapters.keys())}
-    </div>
-</body>
-</html>
-"""
-
     def _create_latex_header(self, title: str) -> str:
         """Create LaTeX document header"""
         return f"""\\documentclass[12pt,a4paper]{{article}}
@@ -736,69 +668,12 @@ class NovelDownloader:
             return
 
         current_index = all_titles.index(title)
-        prev_link = f'<a href="{self._sanitize_filename(all_titles[current_index-1])}.html">上一章</a>' if current_index > 0 else ''
-        next_link = f'<a href="{self._sanitize_filename(all_titles[current_index+1])}.html">下一章</a>' if current_index < len(all_titles)-1 else ''
+        prev_link = f'<a href="{utils._sanitize_filename(all_titles[current_index-1])}.html">上一章</a>' if current_index > 0 else ''
+        next_link = f'<a href="{utils._sanitize_filename(all_titles[current_index+1])}.html">下一章</a>' if current_index < len(all_titles)-1 else ''
 
-        html_content = f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title}</title>
-    <style>
-        /* ... Same CSS variables as index ... */
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            line-height: 1.8;
-            margin: 0;
-            padding: 20px;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            max-width: 800px;
-            margin: 0 auto;
-        }}
-        .navigation {{
-            display: flex;
-            justify-content: space-between;
-            padding: 20px 0;
-            position: sticky;
-            top: 0;
-            background-color: var(--bg-color);
-        }}
-        .navigation a {{
-            color: var(--link-color);
-            text-decoration: none;
-            padding: 8px 16px;
-            border: 1px solid var(--link-color);
-            border-radius: 4px;
-        }}
-        .content {{
-            text-indent: 2em;
-            margin-bottom: 40px;
-        }}
-    </style>
-</head>
-<body>
-    <div class="navigation">
-        <a href="index.html">目录</a>
-        {prev_link}
-        {next_link}
-    </div>
-    <h1>{title}</h1>
-    <div class="content">
-        {content.replace(chr(10), '<br>' + self.config.kgf * self.config.kg)}
-    </div>
-    <div class="navigation">
-        <a href="index.html">目录</a>
-        {prev_link}
-        {next_link}
-    </div>
-</body>
-</html>
-"""
+        html_content = html_format.content(title,content,prev_link,next_link,self.config)
         
-        with open(os.path.join(output_dir, f"{self._sanitize_filename(title)}.html"), "w", encoding='UTF-8') as f:
+        with open(os.path.join(output_dir, f"{utils._sanitize_filename(title)}.html"), "w", encoding='UTF-8') as f:
             f.write(html_content)
 
     def _download_chapter_for_latex(self, title: str, chapter_id: str) -> Optional[str]:
@@ -975,14 +850,6 @@ class NovelDownloader:
                 book.spine.insert(0, cover_page)
         except Exception as e:
             self.log_callback(f"添加封面失败: {str(e)}")
-
-    def _sanitize_filename(self, filename: str) -> str:
-        """Sanitize filename for different platforms"""
-        illegal_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
-        illegal_chars_rep = ['＜', '＞', '：', '＂', '／', '＼', '｜', '？', '＊']
-        for old, new in zip(illegal_chars, illegal_chars_rep):
-            filename = filename.replace(old, new)
-        return filename
 
     def _parse_novel_id(self, novel_id: Union[str, int]) -> Optional[int]:
         """Parse novel ID from input (URL or ID)"""
