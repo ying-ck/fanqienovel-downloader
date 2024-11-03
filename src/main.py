@@ -10,7 +10,7 @@ from typing import Callable, Optional, Dict, List, Union
 from dataclasses import dataclass
 from enum import Enum
 
-import html_format, utils
+import html_format, utils, cookie
 
 class SaveMode(Enum):
     SINGLE_TXT = 1
@@ -66,7 +66,7 @@ class NovelDownloader:
             self.charset = json.load(f)
         
         self._setup_directories()
-        self._init_cookie()
+        cookie.init(self)
         
         # Add these variables
         self.zj = {}  # For storing chapter data
@@ -79,21 +79,6 @@ class NovelDownloader:
         """Create necessary directories if they don't exist"""
         os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.bookstore_dir, exist_ok=True)
-
-    def _init_cookie(self):
-        """Initialize cookie for downloads"""
-        self.log_callback('正在获取cookie')
-        tzj = self._get_initial_chapter_id()
-        
-        if os.path.exists(self.cookie_path):
-            with open(self.cookie_path, 'r', encoding='UTF-8') as f:
-                self.cookie = json.load(f)
-                if self._test_cookie(tzj, self.cookie) == 'err':
-                    self._get_new_cookie(tzj)
-        else:
-            self._get_new_cookie(tzj)
-        
-        self.log_callback('Cookie获取成功')
 
     @dataclass
     class DownloadProgress:
@@ -201,25 +186,6 @@ class NovelDownloader:
             return []
 
     # ... Additional helper methods would go here ...
-
-    def _get_initial_chapter_id(self) -> int:
-        """Get an initial chapter ID for cookie testing"""
-        test_novel_id = 7143038691944959011  # Example novel ID
-        chapters = self._get_chapter_list(test_novel_id)
-        if chapters and len(chapters[1]) > 21:
-            return int(random.choice(list(chapters[1].values())[21:]))
-        raise Exception("Failed to get initial chapter ID")
-
-    def _get_new_cookie(self, chapter_id: int):
-        """Generate new cookie"""
-        bas = 1000000000000000000
-        for i in range(random.randint(bas * 6, bas * 8), bas * 9):
-            time.sleep(random.randint(50, 150) / 1000)
-            self.cookie = f'novel_web_id={i}'
-            if len(self._download_chapter_content(chapter_id, test_mode=True)) > 200:
-                with open(self.cookie_path, 'w', encoding='UTF-8') as f:
-                    json.dump(self.cookie, f)
-                return
 
     def _download_txt(self, novel_id: int) -> str:
         """Download novel in TXT format"""
@@ -418,7 +384,7 @@ class NovelDownloader:
                     self.tcs += 1
                     if self.tcs > 7:
                         self.tcs = 0
-                        self._get_new_cookie(self.tzj)
+                        cookie.get(self,self.tzj)
                     continue  # Try again with new cookie
                 
                 # Save progress periodically
@@ -697,13 +663,6 @@ class NovelDownloader:
 \\section{{{title}}}
 {content}
 """
-
-    def _test_cookie(self, chapter_id: int, cookie: str) -> str:
-        """Test if cookie is valid"""
-        self.cookie = cookie
-        if len(self._download_chapter_content(chapter_id, test_mode=True)) > 200:
-            return 's'
-        return 'err'
 
     def _get_chapter_list(self, novel_id: int) -> tuple:
         """Get novel info and chapter list"""
