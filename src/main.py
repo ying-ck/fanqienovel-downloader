@@ -114,7 +114,7 @@ class NovelDownloader:
         self._pbar.update(1)  # Update by 1 instead of setting n directly
         
         # For web: Return progress info
-        return DownloadProgress(
+        return self.DownloadProgress(
             current=current,
             total=total,
             percentage=(current / total * 100) if total > 0 else 0,
@@ -265,7 +265,6 @@ class NovelDownloader:
 
             total_chapters = len(chapters)
             completed_chapters = 0
-
             # Create CLI progress bar
             with tqdm(total=total_chapters, desc='下载进度') as pbar:
                 # Download chapters
