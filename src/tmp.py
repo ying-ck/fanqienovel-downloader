@@ -4,9 +4,9 @@ from lxml import etree
 from ebooklib import epub
 from tqdm import tqdm
 from bs4 import BeautifulSoup
-import json, time, random, os, shutil
+import json, time, random, os
 import concurrent.futures
-from typing import Callable, Optional, Dict, List, Union
+from typing import Callable, Optional
 from dataclasses import dataclass
 from enum import Enum
 
@@ -23,7 +23,7 @@ class SaveMode(Enum):
 class Config:
     kg: int = 0
     kgf: str = '　'
-    delay: List[int] = None
+    delay: list[int] = None
     save_path: str = ''
     save_mode: SaveMode = SaveMode.SINGLE_TXT
     space_mode: str = 'halfwidth'
@@ -107,17 +107,17 @@ class NovelDownloader:
             chapter_title=chapter_title
         )
 
-    def download_novel(self, novel_id: Union[str, int]) -> bool:
+    def download_novel(self, novel_id: str) -> bool:
         """
         Download a novel by its ID
         Returns True if successful, False otherwise
         """
         try:
-            novel_id = self._parse_novel_id(novel_id)
+            novel_id = utils.parse_novel_id(self, novel_id)
             if not novel_id:
                 return False
 
-            self._update_records(novel_id)
+            utils.update_records(self, novel_id)
 
             if self.config.save_mode == SaveMode.EPUB:
                 status = self._download_epub(novel_id)
@@ -142,7 +142,7 @@ class NovelDownloader:
             self.log_callback(f'下载失败: {str(e)}')
             return False
 
-    def search_novel(self, keyword: str) -> List[Dict]:
+    def search_novel(self, keyword: str) -> list[dict]:
         """
         Search for novels by keyword
         Returns list of novel info dictionaries
@@ -358,7 +358,7 @@ class NovelDownloader:
                 if completed_chapters < total_chapters:
                     self.progress_callback(total_chapters, total_chapters, '下载完成')
 
-    def _download_chapter(self, title: str, chapter_id: str, existing_content: Dict) -> Optional[str]:
+    def _download_chapter(self, title: str, chapter_id: str, existing_content: dict) -> Optional[str]:
         """Download a single chapter with retries"""
         if title in existing_content:
             self.zj[title] = existing_content[title]  # Add this
@@ -391,7 +391,7 @@ class NovelDownloader:
                 self.cs += 1
                 if self.cs >= 5:
                     self.cs = 0
-                    self._save_progress(title, content)
+                    utils.save_progress(self, title, content)
 
                 self.zj[title] = content  # Add this
                 return content
@@ -441,7 +441,7 @@ class NovelDownloader:
                     f.write(f'{chapter_content.replace("\n", fg)}\n')
         return 's'
 
-    def _save_split_txt(self, name: str, content: Dict) -> str:
+    def _save_split_txt(self, name: str, content: dict) -> str:
         """Save each chapter to a separate TXT file"""
         output_dir = os.path.join(self.config.save_path, name)
         os.makedirs(output_dir, exist_ok=True)
@@ -608,7 +608,7 @@ class NovelDownloader:
 \\newpage
 """
 
-    def _download_chapter_for_html(self, title: str, chapter_id: str, output_dir: str, all_titles: List[str]) -> None:
+    def _download_chapter_for_html(self, title: str, chapter_id: str, output_dir: str, all_titles: list[str]) -> None:
         """Download and format chapter for HTML"""
         content = self._download_chapter(title, chapter_id, {})
         if not content:
@@ -696,11 +696,11 @@ class NovelDownloader:
                     return content
 
                 try:
-                    return self._decode_content(content)
+                    return utils.decode_content(self, content)
                 except:
                     # Try alternative decoding mode
                     try:
-                        return self._decode_content(content, mode=1)
+                        return utils.decode_content(self, content, mode=1)
                     except:
                         # Fallback HTML processing
                         content = content[6:]
@@ -729,7 +729,7 @@ class NovelDownloader:
                     if test_mode:
                         return content
 
-                    return self._decode_content(content)
+                    return utils.decode_content(self, content)
                 except:
                     if attempt == 2:  # Last attempt
                         if test_mode:
@@ -791,17 +791,7 @@ class NovelDownloader:
         except Exception as e:
             self.log_callback(f"添加封面失败: {str(e)}")
 
-    def _parse_novel_id(self, novel_id: Union[str, int]) -> Optional[int]:
-        """Parse novel ID from input (URL or ID)"""
-        if isinstance(novel_id, str) and novel_id.startswith('http'):
-            novel_id = novel_id.split('?')[0].split('/')[-1]
-        try:
-            return int(novel_id)
-        except ValueError:
-            self.log_callback(f'Invalid novel ID: {novel_id}')
-            return None
-
-    def get_downloaded_novels(self) -> List[Dict[str, str]]:
+    def get_downloaded_novels(self) -> list[dict[str, str]]:
         """Get list of downloaded novels with their paths"""
         novels = []
         for filename in os.listdir(self.bookstore_dir):
@@ -841,54 +831,3 @@ class NovelDownloader:
                     })
         return novels
 
-    def backup_data(self, backup_dir: str):
-        """Backup all data to specified directory"""
-        os.makedirs(backup_dir, exist_ok=True)
-
-        # Backup configuration
-        if os.path.exists(self.config_path):
-            shutil.copy2(self.config_path, os.path.join(backup_dir, 'config.json'))
-
-        # Backup records
-        if os.path.exists(self.record_path):
-            shutil.copy2(self.record_path, os.path.join(backup_dir, 'record.json'))
-
-        # Backup novels
-        novels_backup_dir = os.path.join(backup_dir, 'novels')
-        os.makedirs(novels_backup_dir, exist_ok=True)
-        for novel in self.get_downloaded_novels():
-            shutil.copy2(novel['json_path'], novels_backup_dir)
-
-    def _decode_content(self, content: str, mode: int = 0) -> str:
-        """Decode novel content using both charset modes"""
-        result = ''
-        for char in content:
-            uni = ord(char)
-            if self.CODE[mode][0] <= uni <= self.CODE[mode][1]:
-                bias = uni - self.CODE[mode][0]
-                if 0 <= bias < len(self.charset[mode]) and self.charset[mode][bias] != '?':
-                    result += self.charset[mode][bias]
-                else:
-                    result += char
-            else:
-                result += char
-        return result
-
-    def _update_records(self, novel_id: int):
-        """Update download records"""
-        if os.path.exists(self.record_path):
-            with open(self.record_path, 'r', encoding='UTF-8') as f:
-                records = json.load(f)
-        else:
-            records = []
-
-        if novel_id not in records:
-            records.append(novel_id)
-            with open(self.record_path, 'w', encoding='UTF-8') as f:
-                json.dump(records, f)
-
-    def _save_progress(self, title: str, content: str):
-        """Save download progress"""
-        self.zj[title] = content
-        with open(self.book_json_path, 'w', encoding='UTF-8') as f:
-            json.dump(self.zj, f, ensure_ascii=False)
