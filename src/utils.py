@@ -1,4 +1,6 @@
 import os, json
+from bs4 import BeautifulSoup
+import requests as req
 
 
 def sanitize_filename(filename: str) -> str:
@@ -55,3 +57,18 @@ def parse_novel_id(self, novel_id: str) -> int | None:
     except ValueError:
         self.log_callback(f'Invalid novel ID: {novel_id}')
         return None
+
+def get_author_info(self, novel_id: int) -> str | None:
+    """Get author information from novel page"""
+    url = f'https://fanqienovel.com/page/{novel_id}'
+    try:
+        response = req.get(url, headers=self.headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        script_tag = soup.find('script', type="application/ld+json")
+        if script_tag:
+            data = json.loads(script_tag.string)
+            if 'author' in data:
+                return data['author'][0]['name']
+    except Exception as e:
+        self.log_callback(f"获取作者信息失败: {str(e)}")
+    return None

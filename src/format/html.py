@@ -1,4 +1,4 @@
-from utils import sanitize_filename
+from ..utils import sanitize_filename
 
 def index(title: str,chapters: dict[str, str]) -> str:
     """Create HTML index page with CSS styling"""
