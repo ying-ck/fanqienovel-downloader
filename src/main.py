@@ -24,6 +24,7 @@ def loop(downloader: NovelDownloader, config: Config):
             settings(downloader, config)
         case '5':
             backup(downloader, 'C:\\Users\\Administrator\\fanqie_down_backup')
+            # fixme 究竟什么人会把备份存到这O.o
         case '6':
             quit(0)
         case _:

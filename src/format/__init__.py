@@ -1,1 +1,1 @@
-from . import html, latex
+from . import html, latex, epub

@@ -28,17 +28,17 @@ def decode_content(self, content: str, mode: int = 0) -> str:
     return result
 
 
-def update_records(self, novel_id: int):
+def update_records(path: str, novel_id: int):
     """Update download records"""
-    if os.path.exists(self.record_path):
-        with open(self.record_path, 'r', encoding='UTF-8') as f:
+    if os.path.exists(path):
+        with open(path, 'r', encoding='UTF-8') as f:
             records=json.load(f)
     else:
         records=[]
 
     if novel_id not in records:
         records.append(novel_id)
-        with open(self.record_path, 'w', encoding='UTF-8') as f:
+        with open(path, 'w', encoding='UTF-8') as f:
             json.dump(records, f)
 
 

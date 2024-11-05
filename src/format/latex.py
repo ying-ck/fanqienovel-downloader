@@ -1,13 +1,13 @@
-def chapter(config, title: str, content: str) -> str:
+def chapter(title: str, content: str, kg: str) -> str:
     """Format chapter content for LaTeX"""
     # Escape special LaTeX characters
-    special_chars = ['\\', '{', '}', '&', '#', '$', '^', '_', '~', '%']
+    special_chars=['\\', '{', '}', '&', '#', '$', '^', '_', '~', '%']
     for char in special_chars:
-        content = content.replace(char, f'\\{char}')
-        title = title.replace(char, f'\\{char}')
+        content=content.replace(char, f'\\{char}')
+        title=title.replace(char, f'\\{char}')
 
     # Format content with proper spacing
-    content = content.replace('\n', '\n\n' + config.kgf * config.kg)
+    content=content.replace('\n', '\n\n'+kg)
 
     return f"""
 \\section{{{title}}}

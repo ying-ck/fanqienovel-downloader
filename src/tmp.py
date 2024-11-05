@@ -120,7 +120,7 @@ class NovelDownloader:
             if not novel_id:
                 return False
 
-            utils.update_records(self, novel_id)
+            utils.update_records(self.record_path, novel_id)
 
             if self.config.save_mode == SaveMode.EPUB:
                 status = self._download_epub(novel_id)
@@ -306,9 +306,7 @@ class NovelDownloader:
             author = utils.get_author_info(self, novel_id)
             if author:
                 book.add_author(author)
-            cover_url = self._get_cover_url(novel_id)
-            if cover_url:
-                self._add_cover_to_epub(book, cover_url)
+            format.epub.add_cover(self, book, novel_id)
 
             total_chapters = len(chapters)
             completed_chapters = 0
@@ -571,7 +569,7 @@ class NovelDownloader:
             # Sort chapters and add to document
             chapter_contents.sort(key=lambda x: list(chapters.keys()).index(x[0]))
             for title, content in chapter_contents:
-                latex_content += format.latex.chapter(self.config, title, content)
+                latex_content += format.latex.chapter(title, content, self.config.kgf * self.config.kg)
 
             # Add document footer and save
             latex_content += "\n\\end{document}"
@@ -596,7 +594,7 @@ class NovelDownloader:
         prev_link = f'<a href="{utils.sanitize_filename(all_titles[current_index-1])}.html">上一章</a>' if current_index > 0 else ''
         next_link = f'<a href="{utils.sanitize_filename(all_titles[current_index+1])}.html">下一章</a>' if current_index < len(all_titles)-1 else ''
 
-        html_content = format.html.content(title, content, prev_link, next_link, self.config)
+        html_content = format.html.content(title, content, prev_link, next_link, self.config.kgf * self.config.kg)
 
         with open(os.path.join(output_dir, f"{utils.sanitize_filename(title)}.html"), "w", encoding='UTF-8') as f:
             f.write(html_content)
@@ -606,9 +604,7 @@ class NovelDownloader:
         content = self._download_chapter(title, chapter_id, {})
         if not content:
             return None
-        return format.latex.chapter(self.config, title, content)
-
-
+        return format.latex.chapter(title, content, self.config.kgf * self.config.kg)
 
     def _get_chapter_list(self, novel_id: int) -> tuple:
         """Get novel info and chapter list"""
@@ -702,45 +698,6 @@ class NovelDownloader:
                     time.sleep(1)
 
 
-
-    def _get_cover_url(self, novel_id: int) -> Optional[str]:
-        """Get cover image URL from novel page"""
-        url = f'https://fanqienovel.com/page/{novel_id}'
-        try:
-            response = req.get(url, headers=self.headers)
-            soup = BeautifulSoup(response.text, 'html.parser')
-            script_tag = soup.find('script', type="application/ld+json")
-            if script_tag:
-                data = json.loads(script_tag.string)
-                if 'image' in data:
-                    return data['image'][0]
-        except Exception as e:
-            self.log_callback(f"获取封面图片失败: {str(e)}")
-        return None
-
-    def _add_cover_to_epub(self, book: epub.EpubBook, cover_url: str):
-        """Add cover image to EPUB book"""
-        try:
-            response = req.get(cover_url)
-            if response.status_code == 200:
-                book.set_cover('cover.jpg', response.content)
-
-                # Add cover page
-                cover_content = f'''
-                    <div style="text-align: center; padding: 0; margin: 0;">
-                        <img src="cover.jpg" alt="Cover" style="max-width: 100%; height: auto;"/>
-                    </div>
-                '''
-                cover_page = epub.EpubHtml(
-                    title='Cover',
-                    file_name='cover.xhtml',
-                    content=cover_content,
-                    media_type='image/jpeg'
-                )
-                book.add_item(cover_page)
-                book.spine.insert(0, cover_page)
-        except Exception as e:
-            self.log_callback(f"添加封面失败: {str(e)}")
 
     def get_downloaded_novels(self) -> list[dict[str, str]]:
         """Get list of downloaded novels with their paths"""

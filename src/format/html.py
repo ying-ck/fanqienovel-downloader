@@ -1,4 +1,4 @@
-from ..utils import sanitize_filename
+from src.utils import sanitize_filename
 
 def index(title: str,chapters: dict[str, str]) -> str:
     """Create HTML index page with CSS styling"""
@@ -65,7 +65,7 @@ def index(title: str,chapters: dict[str, str]) -> str:
 </html>
 """
 
-def content(title: str,content: str,prev_link: str,next_link: str,config) -> str:
+def content(title: str, text: str, prev_link: str, next_link: str, kg: str) -> str:
     f"""
 <!DOCTYPE html>
 <html>
@@ -114,7 +114,7 @@ def content(title: str,content: str,prev_link: str,next_link: str,config) -> str
     </div>
     <h1>{title}</h1>
     <div class="content">
-        {content.replace(chr(10), '<br>' + config.kgf * config.kg)}
+        {text.replace(chr(10), '<br>'+kg)}
     </div>
     <div class="navigation">
         <a href="index.html">目录</a>
