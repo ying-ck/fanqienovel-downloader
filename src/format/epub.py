@@ -4,11 +4,7 @@ import requests as req
 import json
 
 
-def add_cover(self, book: epub.EpubBook, novel_id: int) -> None:
-    if cover_url:= _get_cover_url(self, novel_id):
-        _add_cover_to_epub(self, book, cover_url)
-
-def _get_cover_url(self, novel_id: int) -> str | None:
+def get_cover_url(self, novel_id: int) -> str | None:
     """Get cover image URL from novel page"""
     url = f'https://fanqienovel.com/page/{novel_id}'
     try:
@@ -24,7 +20,7 @@ def _get_cover_url(self, novel_id: int) -> str | None:
     return None
 
 
-def _add_cover_to_epub(self, book: epub.EpubBook, cover_url: str):
+def add_cover(self, book: epub.EpubBook, cover_url: str):
     """Add cover image to EPUB book"""
     try:
         response = req.get(cover_url)

@@ -3,7 +3,6 @@ import requests as req
 from lxml import etree
 from ebooklib import epub
 from tqdm import tqdm
-from bs4 import BeautifulSoup
 import json, time, random, os
 import concurrent.futures
 from typing import Callable, Optional
@@ -303,10 +302,10 @@ class NovelDownloader:
             book.set_language('zh')
 
             # Get author info and cover
-            author = utils.get_author_info(self, novel_id)
-            if author:
+            if author:= utils.get_author_info(self, novel_id):
                 book.add_author(author)
-            format.epub.add_cover(self, book, novel_id)
+            if cover_url:= format.epub.get_cover_url(self, novel_id):
+                format.epub.add_cover(self, book, cover_url)
 
             total_chapters = len(chapters)
             completed_chapters = 0
