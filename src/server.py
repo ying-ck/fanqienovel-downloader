@@ -3,7 +3,8 @@ monkey.patch_all()
 
 from flask import Flask, render_template, jsonify, send_file, request
 from flask_socketio import SocketIO
-from tmp import NovelDownloader, Config, SaveMode
+from tmp import NovelDownloader
+from src.settings import Config, SaveMode
 import os, threading, zipfile, io, logging, time
 from collections import deque
 

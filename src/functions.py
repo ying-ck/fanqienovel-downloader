@@ -1,5 +1,6 @@
-import json, time, os, platform, shutil
-from tmp import NovelDownloader, Config, SaveMode
+import json, os, platform, shutil
+from tmp import NovelDownloader
+from settings import Config
 
 def check_backup():
     backup_folder_path = r'C:\Users\Administrator\fanqie_down_backup'
@@ -108,60 +109,22 @@ def batch_download(downloader: NovelDownloader):
             else:
                 print(f'链接: {url} 下载完成。')
 
-def settings(downloader: NovelDownloader, config: Config):
-    print('请选择项目：1.正文段首占位符 2.章节下载间隔延迟 3.小说保存路径 4.小说保存方式 5.设置下载线程数')
-    inp2 = input()
-    if inp2 == '1':
-        tmp = input('请输入正文段首占位符(当前为"%s")(直接Enter不更改)：' % config.kgf)
-        if tmp != '':
-            config.kgf = tmp
-        config.kg = int(input('请输入正文段首占位符数（当前为%d）：' % config.kg))
-    elif inp2 == '2':
-        print('由于迟过小造成的后果请自行负责。\n请输入下载间隔随机延迟')
-        config.delay[0] = int(input('下限（当前为%d）（毫秒）：' % config.delay[0]))
-        config.delay[1] = int(input('上限（当前为%d）（毫秒）：' % config.delay[1]))
-    elif inp2 == '3':
-        print('tip:设置为当前目录点取消')
-        time.sleep(1)
-        path = input("\n请输入保存目录的完整路径:\n(直接按Enter使用当前目录)\n").strip()
-        if path == "":
-            config.save_path = os.getcwd()
-        else:
-            if not os.path.exists(path):
-                try:
-                    os.makedirs(path)
-                    config.save_path = path
-                except:
-                    print("无法创建目录，将使用当前目录")
-                    config.save_path = os.getcwd()
-            else:
-                config.save_path = path
-    elif inp2 == '4':
-        print('请选择：1.保存为单个 txt 2.分章保存 3.保存为 epub 4.保存为 HTML 网页格式 5.保存为 LaTeX')
-        inp3 = input()
-        try:
-            config.save_mode = SaveMode(int(inp3))
-        except ValueError:
+def set_config(downloader: NovelDownloader, config: Config):
+    match inp2:=input('请选择项目：1.正文段首占位符 2.章节下载间隔延迟 3.小说保存路径 4.小说保存方式 5.设置下载线程数'):
+        case '1':
+            config.update_placeholder()
+        case '2':
+            config.update_delay()
+        case '3':
+            config.update_save_path()
+        case '4':
+            config.update_save_mode()
+        case '5':
+            config.update_threads()
+        case _:
             print('请正确输入!')
             return
-    elif inp2 == '5':
-        config.xc = int(input('请输入下载线程数：'))
-    else:
-        print('请正确输入!')
-        return
-
-    # Save config
-    with open(downloader.config_path, 'w', encoding='UTF-8') as f:
-        json.dump({
-            'kg': config.kg,
-            'kgf': config.kgf,
-            'delay': config.delay,
-            'save_path': config.save_path,
-            'save_mode': config.save_mode.value,
-            'space_mode': config.space_mode,
-            'xc': config.xc
-        }, f)
-    print('设置完成')
+    config.save_config(downloader.config_path)
 
 def backup(downloader: NovelDownloader, backup_dir: str):
     """Backup all data to specified directory"""

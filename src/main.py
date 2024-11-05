@@ -1,6 +1,7 @@
-from tmp import Config, NovelDownloader
+from tmp import NovelDownloader
+from settings import Config
 from functions import (check_backup, update_all, search,
-                       batch_download, settings, backup, download_novel)
+                       batch_download, set_config, backup, download_novel)
 
 def loop(downloader: NovelDownloader, config: Config):
     print('\n输入书的id直接下载\n输入下面的数字进入其他功能:')
@@ -21,7 +22,7 @@ def loop(downloader: NovelDownloader, config: Config):
         case '3':
             batch_download(downloader)
         case '4':
-            settings(downloader, config)
+            set_config(downloader, config)
         case '5':
             backup(downloader, 'C:\\Users\\Administrator\\fanqie_down_backup')
             # fixme 究竟什么人会把备份存到这O.o
@@ -32,7 +33,7 @@ def loop(downloader: NovelDownloader, config: Config):
 
 def main():
     print('本程序完全免费。\nGithub: https://github.com/ying-ck/fanqienovel-downloader\n作者：Yck & qxqycb')
-    
+    print('modified by sstzer')
     config = Config()
     downloader = NovelDownloader(config)
     check_backup()

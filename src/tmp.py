@@ -7,32 +7,11 @@ import json, time, random, os
 import concurrent.futures
 from typing import Callable, Optional
 from dataclasses import dataclass
-from enum import Enum
 
 import utils, cookie
 import format
+from settings import Config, SaveMode
 
-
-class SaveMode(Enum):
-    SINGLE_TXT = 1
-    SPLIT_TXT = 2
-    EPUB = 3
-    HTML = 4
-    LATEX = 5
-
-@dataclass
-class Config:
-    kg: int = 0
-    kgf: str = '　'
-    delay: list[int] = None
-    save_path: str = ''
-    save_mode: SaveMode = SaveMode.SINGLE_TXT
-    space_mode: str = 'halfwidth'
-    xc: int = 1
-
-    def __post_init__(self):
-        if self.delay is None:
-            self.delay = [50, 150]
 
 class NovelDownloader:
     def __init__(self,
