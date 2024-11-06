@@ -6,6 +6,7 @@ import json, time, random, os
 from typing import Callable, Optional
 from dataclasses import dataclass
 
+import src.down.txt
 import utils, cookie, down
 from settings import Config, SaveMode
 
@@ -98,13 +99,13 @@ class NovelDownloader:
             utils.update_records(self.record_path, novel_id)
 
             if self.config.save_mode == SaveMode.EPUB:
-                status = down.epub.depub(self, novel_id)
+                status = down.epub(self, novel_id)
             elif self.config.save_mode == SaveMode.HTML:
-                status = down.html.html(self, novel_id)
+                status = down.html(self, novel_id)
             elif self.config.save_mode == SaveMode.LATEX:
-                status = down.latex.latex(self, novel_id)
+                status = down.latex(self, novel_id)
             else:
-                status = down.download.txt(self, novel_id)
+                status = down.txt(self, novel_id)
 
             if status == 'err':
                 self.log_callback('找不到此书')
@@ -164,32 +165,6 @@ class NovelDownloader:
             return []
 
     # ... Additional helper methods would go here ...
-
-
-    def _get_chapter_list(self, novel_id: int) -> tuple:
-        """Get novel info and chapter list"""
-        url = f'https://fanqienovel.com/page/{novel_id}'
-        response = req.get(url, headers=self.headers)
-        ele = etree.HTML(response.text)
-
-        chapters = {}
-        a_elements = ele.xpath('//div[@class="chapter"]/div/a')
-        if not a_elements:  # Add this check
-            return 'err', {}, []
-
-        for a in a_elements:
-            href = a.xpath('@href')
-            if not href:  # Add this check
-                continue
-            chapters[a.text] = href[0].split('/')[-1]
-
-        title = ele.xpath('//h1/text()')
-        status = ele.xpath('//span[@class="info-label-yellow"]/text()')
-
-        if not title or not status:  # Check both title and status
-            return 'err', {}, []
-
-        return title[0], chapters, status
 
     def _download_chapter_content(self, chapter_id: int, test_mode: bool = False) -> str:
         """Download content with fallback and better error handling"""

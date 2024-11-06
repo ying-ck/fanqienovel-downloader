@@ -7,7 +7,7 @@ from src.down import download
 def depub(self, novel_id: int) -> str:
     """Download novel in EPUB format"""
     try:
-        name, chapters, status = self._get_chapter_list(novel_id)
+        name, chapters, status = download.get_chapter_list(self.headers, novel_id)
         if name == 'err':
             return 'err'
 

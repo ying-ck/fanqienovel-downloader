@@ -1,9 +1,10 @@
 import json, os, time, random
+from src.down.download import get_chapter_list
 
-def _get_testid(self) -> int:
+def _get_testid(headers: dict) -> int:
     """Get an initial chapter ID for cookie testing"""
     test_novel_id = 7143038691944959011  # Example novel ID
-    chapters = self._get_chapter_list(test_novel_id)
+    chapters = get_chapter_list(headers, test_novel_id)
     if chapters and len(chapters[1]) > 21:
         return int(random.choice(list(chapters[1].values())[21:]))
     raise Exception("Failed to get initial chapter ID")
@@ -18,7 +19,7 @@ def _test(self, chapter_id: int, cookie: str) -> bool:
 def init(self):
     """Initialize cookie for downloads"""
     self.log_callback('正在获取cookie')
-    tzj = _get_testid(self)
+    tzj = _get_testid(self.headers)
 
     if os.path.exists(self.cookie_path):
         with open(self.cookie_path, 'r', encoding='UTF-8') as f:
