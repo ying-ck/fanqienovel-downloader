@@ -1,8 +1,7 @@
 import os, json
 from bs4 import BeautifulSoup
 import requests as req
-from lxml import etree
-
+import settings
 
 def sanitize_filename(filename: str) -> str:
     """Sanitize filename for different platforms"""
@@ -13,15 +12,15 @@ def sanitize_filename(filename: str) -> str:
     return filename
 
 
-def decode_content(self, content: str, mode: int = 0) -> str:
+def decode_content(content: str, mode: int = 0) -> str:
     """Decode novel content using both charset modes"""
     result=''
     for char in content:
         uni=ord(char)
-        if self.CODE[mode][0]<=uni<=self.CODE[mode][1]:
-            bias=uni-self.CODE[mode][0]
-            if 0<=bias<len(self.charset[mode]) and self.charset[mode][bias]!='?':
-                result+=self.charset[mode][bias]
+        if settings.CODE[mode][0]<=uni<=settings.CODE[mode][1]:
+            bias=uni-settings.CODE[mode][0]
+            if 0<=bias<len(settings.charset[mode]) and settings.charset[mode][bias]!='?':
+                result+=settings.charset[mode][bias]
             else:
                 result+=char
         else:
@@ -43,11 +42,11 @@ def update_records(path: str, novel_id: int):
             json.dump(records, f)
 
 
-def save_progress(self, title: str, content: str):
+def save_progress(title: str, content: str, zj: dict, book_json_path: str):
     """Save download progress"""
-    self.zj[title]=content
-    with open(self.book_json_path, 'w', encoding='UTF-8') as f:
-        json.dump(self.zj, f, ensure_ascii=False)
+    zj[title]=content
+    with open(book_json_path, 'w', encoding='UTF-8') as f:
+        json.dump(zj, f, ensure_ascii=False)
 
 def parse_novel_id(self, novel_id: str) -> int | None:
     """Parse novel ID from input (URL or ID)"""
@@ -63,7 +62,7 @@ def get_author_info(self, novel_id: int) -> str | None:
     """Get author information from novel page"""
     url = f'https://fanqienovel.com/page/{novel_id}'
     try:
-        response = req.get(url, headers=self.headers)
+        response = req.get(url, headers=settings.headers)
         soup = BeautifulSoup(response.text, 'html.parser')
         script_tag = soup.find('script', type="application/ld+json")
         if script_tag:
@@ -73,30 +72,3 @@ def get_author_info(self, novel_id: int) -> str | None:
     except Exception as e:
         self.log_callback(f"获取作者信息失败: {str(e)}")
     return None
-
-
-def get_chapter_list(headers:dict, novel_id: int) -> tuple:
-        """Get novel info and chapter list"""
-        url = f'https://fanqienovel.com/page/{novel_id}'
-        response = req.get(url, headers=headers)
-        ele = etree.HTML(response.text)
-
-        chapters = {}
-        a_elements = ele.xpath('//div[@class="chapter"]/div/a')
-        if not a_elements:  # Add this check
-            return 'err', {}, []
-
-        for a in a_elements:
-            href = a.xpath('@href')
-            if not href:  # Add this check
-                continue
-            chapters[a.text] = href[0].split('/')[-1]
-
-        title = ele.xpath('//h1/text()')
-        status = ele.xpath('//span[@class="info-label-yellow"]/text()')
-
-        if not title or not status:  # Check both title and status
-            return 'err', {}, []
-
-        return title[0], chapters, status
-

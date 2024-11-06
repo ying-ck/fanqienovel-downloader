@@ -1,15 +1,15 @@
-import concurrent.futures
-import json, os, time
+import concurrent.futures, os
 from tqdm import tqdm
 
-from src import utils
-from src.settings import SaveMode
+from src import utils, settings
 from src.down import download
+from src.settings import SaveMode
+import json, time
 
 def txt(self, novel_id: int) -> str:
     """Download novel in TXT format"""
     try:
-        name, chapters, status = utils.get_chapter_list(self.headers, novel_id)
+        name, chapters, status = download.chapter_list(settings.headers, novel_id)
         if name == 'err':
             return 'err'
 
@@ -17,7 +17,7 @@ def txt(self, novel_id: int) -> str:
         self.log_callback(f'\n开始下载《{name}》，状态：{status[0]}')
 
         # Set book_json_path for the current download
-        self.book_json_path = os.path.join(self.bookstore_dir, f'{safe_name}.json')
+        self.book_json_path = os.path.join(settings.bookstore_dir, f'{safe_name}.json')
 
         # Initialize global variables for this download
         self.zj = {}
@@ -57,7 +57,7 @@ def txt(self, novel_id: int) -> str:
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
                 future_to_chapter = {
                     executor.submit(
-                        download.download_chapter,
+                        download.chapter,
                         self,
                         title,
                         chapter_id,

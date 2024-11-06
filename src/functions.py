@@ -1,6 +1,7 @@
 import json, os, platform, shutil
 from tmp import NovelDownloader
 from settings import Config
+import settings
 
 def check_backup():
     backup_folder_path = r'C:\Users\Administrator\fanqie_down_backup'
@@ -28,11 +29,11 @@ def check_backup():
         print("程序还未备份")
 
 def update_all(downloader: NovelDownloader):
-    if not os.path.exists(downloader.record_path):
+    if not os.path.exists(settings.record_path):
         downloader.log_callback("No novels to update")
         return
 
-    with open(downloader.record_path, 'r', encoding='UTF-8') as f:
+    with open(settings.record_path, 'r', encoding='UTF-8') as f:
         novels = json.load(f)
 
     for novel_id in novels:
@@ -41,7 +42,7 @@ def update_all(downloader: NovelDownloader):
         if not status:
             novels.remove(novel_id)
 
-    with open(downloader.record_path, 'w', encoding='UTF-8') as f:
+    with open(settings.record_path, 'w', encoding='UTF-8') as f:
         json.dump(novels, f)
 
 def search(downloader: NovelDownloader):
@@ -109,8 +110,8 @@ def batch_download(downloader: NovelDownloader):
             else:
                 print(f'链接: {url} 下载完成。')
 
-def set_config(downloader: NovelDownloader, config: Config):
-    match inp2:=input('请选择项目：1.正文段首占位符 2.章节下载间隔延迟 3.小说保存路径 4.小说保存方式 5.设置下载线程数'):
+def set_config(config: Config):
+    match input('请选择项目：1.正文段首占位符 2.章节下载间隔延迟 3.小说保存路径 4.小说保存方式 5.设置下载线程数'):
         case '1':
             config.update_placeholder()
         case '2':
@@ -124,19 +125,19 @@ def set_config(downloader: NovelDownloader, config: Config):
         case _:
             print('请正确输入!')
             return
-    config.save_config(downloader.config_path)
+    config.save_config(settings.config_path)
 
 def backup(downloader: NovelDownloader, backup_dir: str):
     """Backup all data to specified directory"""
     os.makedirs(backup_dir, exist_ok=True)
 
     # Backup configuration
-    if os.path.exists(downloader.config_path):
-        shutil.copy2(downloader.config_path, os.path.join(backup_dir, 'config.json'))
+    if os.path.exists(settings.config_path):
+        shutil.copy2(settings.config_path, os.path.join(backup_dir, 'config.json'))
 
     # Backup records
-    if os.path.exists(downloader.record_path):
-        shutil.copy2(downloader.record_path, os.path.join(backup_dir, 'record.json'))
+    if os.path.exists(settings.record_path):
+        shutil.copy2(settings.record_path, os.path.join(backup_dir, 'record.json'))
 
     # Backup novels
     novels_backup_dir = os.path.join(backup_dir, 'novels')

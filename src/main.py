@@ -22,7 +22,7 @@ def loop(downloader: NovelDownloader, config: Config):
         case '3':
             batch_download(downloader)
         case '4':
-            set_config(downloader, config)
+            set_config(config)
         case '5':
             backup(downloader, 'C:\\Users\\Administrator\\fanqie_down_backup')
             # fixme 究竟什么人会把备份存到这O.o

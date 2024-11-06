@@ -1,13 +1,13 @@
 import concurrent.futures, os
 from tqdm import tqdm
 
-from src import utils, format
+from src import utils, format, settings
 from src.down import download
 
 def latex(self, novel_id: int) -> str:
     """Download novel in LaTeX format"""
     try:
-        name, chapters, status = utils.get_chapter_list(self.headers, novel_id)
+        name, chapters, status = download.chapter_list(settings.headers, novel_id)
         if name == 'err':
             return 'err'
 
@@ -72,7 +72,7 @@ def latex(self, novel_id: int) -> str:
 
 def _download_chapter_for_latex(self, title: str, chapter_id: str) -> str | None:
     """Download and format chapter for LaTeX"""
-    content = download.download_chapter(self, title, chapter_id, {})
+    content = download.chapter(self, title, chapter_id, {})
     if not content:
         return None
     return format.latex.chapter(title, content, self.config.kgf * self.config.kg)

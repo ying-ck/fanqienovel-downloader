@@ -1,6 +1,26 @@
-import time, os, json
+import time, os, json, random
 from dataclasses import dataclass
 from enum import Enum
+
+headers_lib = [
+    {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36'},
+    {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0'},
+    {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36 Edg/93.0.961.47'}
+]
+headers = random.choice(headers_lib)
+
+# Use absolute paths based on script location
+script_dir = os.path.dirname(os.path.abspath(__file__))
+data_dir = os.path.join(script_dir, 'data')
+bookstore_dir = os.path.join(data_dir, 'bookstore')
+record_path = os.path.join(data_dir, 'record.json')
+config_path = os.path.join(data_dir, 'config.json')
+cookie_path = os.path.join(data_dir, 'cookie.json')
+charset_path = os.path.join(script_dir, 'charset.json')
+
+with open(charset_path, 'r', encoding='UTF-8') as f:
+    charset = json.load(f)
+CODE = [[58344, 58715], [58345, 58716]]
 
 
 class SaveMode(Enum):

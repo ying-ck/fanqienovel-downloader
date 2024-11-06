@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 import requests as req
-from lxml import etree
 from tqdm import tqdm
-import json, time, random, os
+import json, os
 from typing import Callable, Optional
 from dataclasses import dataclass
 
-import src.down.txt
 import utils, cookie, down
 from settings import Config, SaveMode
+import settings
 
 
 class NovelDownloader:
@@ -20,30 +19,8 @@ class NovelDownloader:
         self.progress_callback = progress_callback or self._default_progress
         self.log_callback = log_callback or print
 
-        # Initialize headers first
-        self.headers_lib = [
-            {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36'},
-            {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0'},
-            {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36 Edg/93.0.961.47'}
-        ]
-        self.headers = random.choice(self.headers_lib)
-
-        # Use absolute paths based on script location
-        self.script_dir = os.path.dirname(os.path.abspath(__file__))
-        self.data_dir = os.path.join(self.script_dir, 'data')
-        self.bookstore_dir = os.path.join(self.data_dir, 'bookstore')
-        self.record_path = os.path.join(self.data_dir, 'record.json')
-        self.config_path = os.path.join(self.data_dir, 'config.json')
-        self.cookie_path = os.path.join(self.data_dir, 'cookie.json')
-
-        self.CODE = [[58344, 58715], [58345, 58716]]
-
-        # Load charset for text decoding
-        charset_path = os.path.join(self.script_dir, 'charset.json')
-        with open(charset_path, 'r', encoding='UTF-8') as f:
-            self.charset = json.load(f)
-
-        self._setup_directories()
+        os.makedirs(settings.data_dir, exist_ok=True)
+        os.makedirs(settings.bookstore_dir, exist_ok=True)
         self.cookie=""
         cookie.init(self)
 
@@ -53,11 +30,6 @@ class NovelDownloader:
         self.tcs = 0  # Test counter
         self.tzj = None  # Test chapter ID
         self.book_json_path = None  # Current book's JSON path
-
-    def _setup_directories(self):
-        """Create necessary directories if they don't exist"""
-        os.makedirs(self.data_dir, exist_ok=True)
-        os.makedirs(self.bookstore_dir, exist_ok=True)
 
     @dataclass
     class DownloadProgress:
@@ -96,7 +68,7 @@ class NovelDownloader:
             if not novel_id:
                 return False
 
-            utils.update_records(self.record_path, novel_id)
+            utils.update_records(settings.record_path, novel_id)
 
             if self.config.save_mode == SaveMode.EPUB:
                 status = down.epub(self, novel_id)
@@ -144,7 +116,7 @@ class NovelDownloader:
         }
 
         try:
-            response = req.get(url, params=params, headers=self.headers)
+            response = req.get(url, params=params, headers=settings.headers)
             response.raise_for_status()
             data = response.json()
 
@@ -166,79 +138,13 @@ class NovelDownloader:
 
     # ... Additional helper methods would go here ...
 
-    def _download_chapter_content(self, chapter_id: int, test_mode: bool = False) -> str:
-        """Download content with fallback and better error handling"""
-        headers = self.headers.copy()
-        headers['cookie'] = self.cookie
-
-        for attempt in range(3):
-            try:
-                # Try primary method
-                response = req.get(
-                    f'https://fanqienovel.com/reader/{chapter_id}',
-                    headers=headers,
-                    timeout=10
-                )
-                response.raise_for_status()
-
-                content = '\n'.join(
-                    etree.HTML(response.text).xpath(
-                        '//div[@class="muye-reader-content noselect"]//p/text()'
-                    )
-                )
-
-                if test_mode:
-                    return content
-
-                try:
-                    return utils.decode_content(self, content)
-                except:
-                    # Try alternative decoding mode
-                    try:
-                        return utils.decode_content(self, content, mode=1)
-                    except:
-                        # Fallback HTML processing
-                        content = content[6:]
-                        tmp = 1
-                        result = ''
-                        for i in content:
-                            if i == '<':
-                                tmp += 1
-                            elif i == '>':
-                                tmp -= 1
-                            elif tmp == 0:
-                                result += i
-                            elif tmp == 1 and i == 'p':
-                                result = (result + '\n').replace('\n\n', '\n')
-                        return result
-
-            except Exception as e:
-                # Try alternative API endpoint
-                try:
-                    response = req.get(
-                        f'https://fanqienovel.com/api/reader/full?itemId={chapter_id}',
-                        headers=headers
-                    )
-                    content = json.loads(response.text)['data']['chapterData']['content']
-
-                    if test_mode:
-                        return content
-
-                    return utils.decode_content(self, content)
-                except:
-                    if attempt == 2:  # Last attempt
-                        if test_mode:
-                            return 'err'
-                        raise Exception(f"Download failed after 3 attempts: {str(e)}")
-                    time.sleep(1)
-
     def get_downloaded_novels(self) -> list[dict[str, str]]:
         """Get list of downloaded novels with their paths"""
         novels = []
-        for filename in os.listdir(self.bookstore_dir):
+        for filename in os.listdir(settings.bookstore_dir):
             if filename.endswith('.json'):
                 novel_name = filename[:-5]  # Remove .json extension
-                json_path = os.path.join(self.bookstore_dir, filename)
+                json_path = os.path.join(settings.bookstore_dir, filename)
 
                 try:
                     with open(json_path, 'r', encoding='UTF-8') as f:

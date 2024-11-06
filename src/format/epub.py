@@ -2,13 +2,13 @@ from ebooklib import epub
 from bs4 import BeautifulSoup
 import requests as req
 import json
-
+from src import settings
 
 def get_cover_url(self, novel_id: int) -> str | None:
     """Get cover image URL from novel page"""
     url = f'https://fanqienovel.com/page/{novel_id}'
     try:
-        response = req.get(url, headers=self.headers)
+        response = req.get(url, headers=settings.headers)
         soup = BeautifulSoup(response.text, 'html.parser')
         script_tag = soup.find('script', type="application/ld+json")
         if script_tag:
