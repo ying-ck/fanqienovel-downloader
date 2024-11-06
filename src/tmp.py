@@ -98,11 +98,11 @@ class NovelDownloader:
             utils.update_records(self.record_path, novel_id)
 
             if self.config.save_mode == SaveMode.EPUB:
-                status = down.download.depub(self, novel_id)
+                status = down.epub.depub(self, novel_id)
             elif self.config.save_mode == SaveMode.HTML:
-                status = down.download.html(self, novel_id)
+                status = down.html.html(self, novel_id)
             elif self.config.save_mode == SaveMode.LATEX:
-                status = down.download.latex(self, novel_id)
+                status = down.latex.latex(self, novel_id)
             else:
                 status = down.download.txt(self, novel_id)
 
