@@ -2,16 +2,11 @@ from gevent import monkey
 monkey.patch_all()
 
 from flask import Flask, render_template, jsonify, send_file, request
-from flask_socketio import SocketIO, emit
-from main import NovelDownloader, Config, SaveMode
-import os
-import threading
-import queue
-import zipfile
-import io
-import logging
+from flask_socketio import SocketIO
+from tmp import NovelDownloader
+from src.settings import Config, SaveMode
+import os, threading, zipfile, io, logging, time
 from collections import deque
-import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
