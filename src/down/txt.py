@@ -9,7 +9,7 @@ from src.down import download
 def txt(self, novel_id: int) -> str:
     """Download novel in TXT format"""
     try:
-        name, chapters, status = download.get_chapter_list(self.headers, novel_id)
+        name, chapters, status = utils.get_chapter_list(self.headers, novel_id)
         if name == 'err':
             return 'err'
 
@@ -57,7 +57,7 @@ def txt(self, novel_id: int) -> str:
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
                 future_to_chapter = {
                     executor.submit(
-                        download._download_chapter,
+                        download.download_chapter,
                         self,
                         title,
                         chapter_id,

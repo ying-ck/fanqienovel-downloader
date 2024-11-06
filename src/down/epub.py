@@ -1,13 +1,14 @@
 from ebooklib import epub
 import concurrent.futures, os
 from tqdm import tqdm
+
 from src import utils, format
 from src.down import download
 
 def depub(self, novel_id: int) -> str:
     """Download novel in EPUB format"""
     try:
-        name, chapters, status = download.get_chapter_list(self.headers, novel_id)
+        name, chapters, status = utils.get_chapter_list(self.headers, novel_id)
         if name == 'err':
             return 'err'
 
@@ -79,7 +80,7 @@ def depub(self, novel_id: int) -> str:
 
 def _download_chapter_for_epub(self, title: str, chapter_id: str) -> epub.EpubHtml | None:
     """Download and format chapter for EPUB"""
-    content = download._download_chapter(self, title, chapter_id, {})
+    content = download.download_chapter(self, title, chapter_id, {})
     if not content:
         return None
 

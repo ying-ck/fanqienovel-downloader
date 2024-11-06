@@ -1,5 +1,6 @@
 import json, os, time, random
-from src.down.download import get_chapter_list
+from src.utils import get_chapter_list
+
 
 def _get_testid(headers: dict) -> int:
     """Get an initial chapter ID for cookie testing"""

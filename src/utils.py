@@ -1,6 +1,7 @@
 import os, json
 from bs4 import BeautifulSoup
 import requests as req
+from lxml import etree
 
 
 def sanitize_filename(filename: str) -> str:
@@ -72,3 +73,30 @@ def get_author_info(self, novel_id: int) -> str | None:
     except Exception as e:
         self.log_callback(f"获取作者信息失败: {str(e)}")
     return None
+
+
+def get_chapter_list(headers:dict, novel_id: int) -> tuple:
+        """Get novel info and chapter list"""
+        url = f'https://fanqienovel.com/page/{novel_id}'
+        response = req.get(url, headers=headers)
+        ele = etree.HTML(response.text)
+
+        chapters = {}
+        a_elements = ele.xpath('//div[@class="chapter"]/div/a')
+        if not a_elements:  # Add this check
+            return 'err', {}, []
+
+        for a in a_elements:
+            href = a.xpath('@href')
+            if not href:  # Add this check
+                continue
+            chapters[a.text] = href[0].split('/')[-1]
+
+        title = ele.xpath('//h1/text()')
+        status = ele.xpath('//span[@class="info-label-yellow"]/text()')
+
+        if not title or not status:  # Check both title and status
+            return 'err', {}, []
+
+        return title[0], chapters, status
+
