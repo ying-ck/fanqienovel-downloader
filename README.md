@@ -94,7 +94,10 @@ Web 版目前没有 exe 文件，你有两种方式运行 web 版。
 直接使用 `docker compose up` (或是 `docker compose up -d` 在后台运行) 构建并启动镜像。启动后用浏览器访问 `http://localhost:12930`。
 
 下载的小说和个人数据 (`data` 文件夹) 会存在docker 卷里面，分别叫做 `fanqie_data` 和 `fanqie_downloads`。如果你想修改成某个特定的目录，可以修改 `docker-compose.yaml` 文件中的持久化用户数据部分。
-
+### API版
+运行```python fanqie_api_server.py```，之后在源阅读或其他换源阅读器中设置番茄书源为如下地址 
+```http://YOUR_ADDRESS:4888/download_chapter_content?chapter_id=${extractedId} ```
+返回为JSON格式，内容在respon.content中，默认每24小时刷新一次cookie
 ## 集思广益
 
 若各位使用者有什么意见或程序有什么错误，欢迎在lssues中讨论
