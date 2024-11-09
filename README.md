@@ -77,17 +77,19 @@ Web版实现的功能
 - 简洁的 UI 界面。
 - 队列设计，可以把好几本书加入队列，批量下载。
 - (而且把原本的代码重构了一下，至于变好还是变坏我不好说，主要是之前的代码搞成web 不太方便)
+- 在线阅读
 
-Web 版目前没有 exe 文件，你有两种方式运行 web 版。
+你有3种方式运行 web 版。
+1.直接执行exe文件
 
-1. Python 运行
+2. Python 运行
 
 用 Git 克隆这个项目或直接下载项目的zip并解压。进入项目文件夹，新建虚拟环境，并用 `pip install -r requirements.txt` 来安装这个项目的 python 依赖。
 
 接着进入`src`目录，用python 运行 `server.py`，并根据指示用浏览器开启 `http://localhost:12930`。
 (注意：`python`版本3.8及以下版本下载项目`zip`或`git`时，`src`目录中,将原来的`main.py`删除，再把`main2.py`名称改为`main.py`)
 
-2. Docker 运行
+3. Docker 运行
 
 用 Git 克隆这个项目或直接下载项目的zip并解压。进入项目文件夹。
 
