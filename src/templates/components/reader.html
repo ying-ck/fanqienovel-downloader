@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>阅读器</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --text-color: #333;
+            --card-bg: #fff;
+            --border-color: #eee;
+            --hover-bg: #f8f9fa;
+            --active-bg: #e9ecef;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #222;
+            --text-color: #eee;
+            --card-bg: #333;
+            --border-color: #444;
+            --hover-bg: #444;
+            --active-bg: #555;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            line-height: 1.8;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            transition: all 0.3s ease;
+        }
+
+        .reader-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        .reader-content {
+            font-size: 16px;
+            line-height: 2.2;
+            letter-spacing: 0.05em;
+            padding: 20px;
+            background-color: var(--card-bg);
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .reader-content p {
+            text-indent: 2em;
+            margin-bottom: 1.5em;
+        }
+
+        .chapter-list {
+            max-height: 600px;
+            overflow-y: auto;
+            background-color: var(--card-bg);
+            border-radius: 5px;
+            padding: 0;
+        }
+
+        .chapter-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+            color: var(--text-color);
+        }
+
+        .chapter-item:hover {
+            background-color: var(--hover-bg);
+        }
+
+        .chapter-item.active {
+            background-color: var(--active-bg);
+            font-weight: bold;
+        }
+
+        .chapter-item a {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .chapter-item a:hover {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px;
+        }
+
+        /* 主题切换按钮样式 */
+        .theme-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .theme-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        /* 其他样式保持不变... */
+    </style>
+</head>
+<body>
+    <div class="reader-container">
+        <!-- 添加加载指示器 -->
+        <div id="loadingIndicator" class="alert alert-info" style="display: none;">
+            正在加载小说内容...
+        </div>
+        
+        <div class="row">
+            <!-- 左侧阅读区域 -->
+            <div class="col-md-9">
+                <div class="card">
+                    <div class="card-body">
+                        <h1 id="chapterTitle" class="h3 mb-4"></h1>
+                        <div id="chapterContent" class="reader-content"></div>
+                        <div class="navigation">
+                            <button id="prevChapter" class="btn btn-secondary" style="display: none;">上一章</button>
+                            <button id="nextChapter" class="btn btn-secondary" style="display: none;">下一章</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧控制面板 -->
+            <div class="col-md-3">
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">目录</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="chapterList" class="chapter-list">
+                            <!-- 章节列表将在这里动态加载 -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">设置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="fontSize" class="form-label">字体大小</label>
+                            <input type="range" class="form-range" id="fontSize" min="12" max="32" value="16">
+                            <span id="fontSizeValue">16px</span>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">暗色模式</label>
+                            <label class="theme-switch">
+                                <input type="checkbox" id="themeSwitch">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 保持原有的JavaScript代码，并添加主题切换功能 -->
+    <script>
+        let currentNovelId = null;
+        let chapters = [];
+        let currentChapterIndex = 0;
+
+        // 显示加载指示器
+        function showLoading() {
+            document.getElementById('loadingIndicator').style.display = 'block';
+        }
+
+        // 隐藏加载指示器
+        function hideLoading() {
+            document.getElementById('loadingIndicator').style.display = 'none';
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            document.getElementById('chapterContent').innerHTML = `
+                <div class="alert alert-danger">
+                    ${message}
+                </div>`;
+        }
+
+        // 初始化阅读器
+        async function initializeReader() {
+            showLoading();
+            try {
+                // 从URL获取小说ID
+                const urlParams = new URLSearchParams(window.location.search);
+                let novelId = urlParams.get('novel_id');
+                
+                if (!novelId) {
+                    novelId = prompt('请输入小说ID:');
+                    if (!novelId) {
+                        hideLoading();
+                        return;
+                    }
+                }
+                
+                currentNovelId = novelId;
+                console.log('正在加载小说ID:', novelId);
+                
+                // 先下载小说
+                const downloadResponse = await fetch(`/api/download/${novelId}`);
+                const downloadData = await downloadResponse.json();
+                console.log('下载响应:', downloadData);
+                
+                // 获取章节列表
+                const chaptersResponse = await fetch(`/api/chapters/${novelId}`);
+                if (!chaptersResponse.ok) {
+                    throw new Error(`获取章节列表失败: ${chaptersResponse.statusText}`);
+                }
+                
+                const data = await chaptersResponse.json();
+                console.log('章节列表数据:', data);
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                if (!data.chapters || data.chapters.length === 0) {
+                    throw new Error('没有找到章节列表');
+                }
+                
+                chapters = data.chapters;
+                document.getElementById('chapterTitle').innerText = `${data.name} - ${chapters[0].title}`;
+                
+                // 生成章节列表HTML
+                const chapterListHtml = chapters.map((chapter, index) => `
+                    <div class="chapter-item ${index === currentChapterIndex ? 'active' : ''}" 
+                         style="cursor: pointer; padding: 5px;">
+                        <a href="#" onclick="loadChapter(${index}); return false;">
+                            ${chapter.title}
+                        </a>
+                    </div>
+                `).join('');
+                
+                document.getElementById('chapterList').innerHTML = chapterListHtml;
+                
+                // 加载第一章
+                await loadChapter(0);
+                
+            } catch (error) {
+                console.error('初始化阅读器失败:', error);
+                showError(`初始化阅读器失败: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // 加载章节
+        async function loadChapter(index) {
+            if (index < 0 || index >= chapters.length) return;
+            
+            showLoading();
+            currentChapterIndex = index;
+            const chapter = chapters[index];
+            
+            try {
+                console.log('加载章节:', chapter.title);
+                const response = await fetch(`/api/read/${currentNovelId}/${encodeURIComponent(chapter.title)}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('章节内容数据:', data);
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                document.getElementById('chapterTitle').innerText = data.title;
+                document.getElementById('chapterContent').innerHTML = data.content.replace(/\n/g, '<br>');
+                
+                // 更新导航按钮
+                document.getElementById('prevChapter').style.display = index > 0 ? 'inline-block' : 'none';
+                document.getElementById('nextChapter').style.display = index < chapters.length - 1 ? 'inline-block' : 'none';
+                
+                // 高亮当前章节
+                document.querySelectorAll('.chapter-item').forEach((item, i) => {
+                    item.classList.toggle('active', i === index);
+                });
+                
+                // 滚动到顶部
+                window.scrollTo(0, 0);
+                
+            } catch (error) {
+                console.error('加载章节失败:', error);
+                showError(`加载章节失败: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // 设置字体大小
+        document.getElementById('fontSize').addEventListener('input', function(e) {
+            const size = e.target.value;
+            document.getElementById('fontSizeValue').textContent = `${size}px`;
+            document.getElementById('chapterContent').style.fontSize = `${size}px`;
+        });
+
+        // 导航按钮事件
+        document.getElementById('prevChapter').addEventListener('click', () => {
+            loadChapter(currentChapterIndex - 1);
+        });
+
+        document.getElementById('nextChapter').addEventListener('click', () => {
+            loadChapter(currentChapterIndex + 1);
+        });
+
+        // 初始化阅读器
+        initializeReader();
+
+        // 添加主题切换功能
+        const themeSwitch = document.getElementById('themeSwitch');
+        
+        // 检查本地存储中的主题设置
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeSwitch.checked = true;
+        }
+
+        // 监听主题切换
+        themeSwitch.addEventListener('change', function() {
+            if (this.checked) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+            }
+        });
+
+        // 检查系统主题偏好
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeSwitch.checked = true;
+        }
+
+        // 监听系统主题变化
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            const newTheme = e.matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            themeSwitch.checked = e.matches;
+        });
+    </script>
+</body>
+</html>
