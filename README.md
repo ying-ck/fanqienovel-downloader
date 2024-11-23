@@ -65,18 +65,18 @@ urllib3. exceptions. MaxRetryError: HTTPSConnectionPool(host='fanqienovel. com',
 
 ### Web 版
 
-<img src="https://github.com/user-attachments/assets/b81aa6d7-3349-4167-ad62-cb6caffb3cf0" width="500">
-<img src="https://github.com/user-attachments/assets/b8f469ed-98dd-4ea6-9a90-901c7644f9a8" width="500">
-<img src="https://github.com/user-attachments/assets/4e667d93-646f-4b1e-bcec-a869520845b3" width="500">
+<img src="https://github.com/user-attachments/assets/2dfb008b-bdd7-4ff8-a020-cd1e5ede1dc9" width="500">
+<img src="https://github.com/user-attachments/assets/8edee2b2-91e4-483b-bb9b-79d8b18e4a00" width="500">
+<img src="https://github.com/user-attachments/assets/f4257f33-e25e-477c-8f51-6ce5949d881f" width="500">
+<img src="https://github.com/user-attachments/assets/152638c2-43c1-49b6-a097-b50f1ac495e3" width="500">
 
 
 Web版实现的功能
-- 网页服务器下载完直接让你下载小说文件到本地，所以能远程放在容器或虚拟机中运行。
+- 网页服务器下载完直接让你下载小说文件到本地，所以能远程放在容器或虚拟机中运行
 - 有进度条，漂亮！
-- 能透过 id 下载小说，也能用名字搜索小说，更能更新之前下载的小说。
-- 简洁的 UI 界面。
-- 队列设计，可以把好几本书加入队列，批量下载。
-- (而且把原本的代码重构了一下，至于变好还是变坏我不好说，主要是之前的代码搞成web 不太方便)
+- 能透过 id 下载小说，也能用名字搜索小说，更能更新之前下载的小说
+- 简洁的 UI 界面
+- 队列设计，可以把好几本书加入队列，批量下载
 - 在线阅读
 
 你有3种方式运行 web 版。
