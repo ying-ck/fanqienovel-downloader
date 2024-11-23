@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>阅读器</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --text-color: #333;
+            --card-bg: #fff;
+            --border-color: #eee;
+            --hover-bg: #f8f9fa;
+            --active-bg: #e9ecef;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #222;
+            --text-color: #eee;
+            --card-bg: #333;
+            --border-color: #444;
+            --hover-bg: #444;
+            --active-bg: #555;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            line-height: 1.8;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            transition: all 0.3s ease;
+        }
+
+        .reader-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        .reader-content {
+            position: relative;
+            z-index: 1;
+            padding: 20px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .reader-content p {
+            text-indent: 2em;
+            margin-bottom: 1.5em;
+        }
+
+        .chapter-list {
+            max-height: 600px;
+            overflow-y: auto;
+            background-color: var(--card-bg);
+            border-radius: 5px;
+            padding: 0;
+        }
+
+        .chapter-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+            color: var(--text-color);
+        }
+
+        .chapter-item:hover {
+            background-color: var(--hover-bg);
+        }
+
+        .chapter-item.active {
+            background-color: var(--active-bg);
+            font-weight: bold;
+        }
+
+        .chapter-item a {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .chapter-item a:hover {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .card-header {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px;
+        }
+
+        /* 主题切换按钮样式 */
+        .theme-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .theme-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        /* 其他样式保持不变... */
+
+        /* 添加阅读进度指示器样式 */
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 2px;
+            background-color: #007bff;
+            transition: width 0.3s ease;
+            z-index: 1000;
+        }
+
+        /* 添加快捷键提示样式 */
+        .shortcut-hint {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            z-index: 1000;
+            display: none;
+        }
+
+        /* 背景图片相关样式 */
+        .reader-content {
+            position: relative;
+            z-index: 1;
+            padding: 20px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        /* 暗色模式下的磨砂玻璃效果 */
+        [data-theme="dark"] .reader-content {
+            background: rgba(34, 34, 34, 0.8);
+            color: #eee;
+        }
+
+        /* 美化文件上传按钮 */
+        .form-control[type="file"] {
+            padding: 0.375rem 0.75rem;
+            background-color: var(--bg-color);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+
+        /* 美化范围输入控件 */
+        .form-range::-webkit-slider-thumb {
+            background-color: var(--primary-color);
+        }
+
+        .form-range::-webkit-slider-runnable-track {
+            background-color: var(--border-color);
+        }
+
+        /* 背景图片容器样式 */
+        #bgContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        #bgImage {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.3s ease;
+        }
+
+        /* 卡片样式调整 */
+        .card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        /* 暗色模式下的卡片样式 */
+        [data-theme="dark"] .card {
+            background: rgba(34, 34, 34, 0.8);
+        }
+
+        /* 章节列表项样式 */
+        .chapter-item {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+        }
+
+        /* 暗色模式下的章节列表项样式 */
+        [data-theme="dark"] .chapter-item {
+            background: rgba(34, 34, 34, 0.8);
+            color: #eee;
+        }
+
+        .chapter-item:hover {
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        [data-theme="dark"] .chapter-item:hover {
+            background: rgba(34, 34, 34, 0.9);
+        }
+
+        /* 活动章节样式 */
+        .chapter-item.active {
+            background: rgba(200, 200, 200, 0.9);
+        }
+
+        [data-theme="dark"] .chapter-item.active {
+            background: rgba(50, 50, 50, 0.9);
+        }
+
+        /* 设置面板样式 */
+        .settings-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        [data-theme="dark"] .settings-panel {
+            background: rgba(34, 34, 34, 0.8);
+        }
+
+        /* 自定义范围 */
+        .custom-range {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #e9ecef;
+            outline: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* 拖动球样式 */
+        .custom-range::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #007bff;
+            cursor: pointer;
+            border: 2px solid #fff;
+            box-shadow: 0 0 2px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+            margin-top: -4px; /* 调整球的垂直位置 */
+        }
+
+        .custom-range::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #007bff;
+            cursor: pointer;
+            border: 2px solid #fff;
+            box-shadow: 0 0 2px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+        }
+
+        /* 滑动轨道样式 */
+        .custom-range::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: #e9ecef;
+            border-radius: 4px;
+        }
+
+        .custom-range::-moz-range-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: #e9ecef;
+            border-radius: 4px;
+        }
+
+        /* 进度条填充效果 */
+        .custom-range {
+            background: linear-gradient(to right, #007bff 0%, #007bff var(--range-progress), #e9ecef var(--range-progress), #e9ecef 100%);
+        }
+
+        /* 悬停效果 */
+        .custom-range::-webkit-slider-thumb:hover {
+            background: #0056b3;
+            transform: scale(1.1);
+        }
+
+        .custom-range::-moz-range-thumb:hover {
+            background: #0056b3;
+            transform: scale(1.1);
+        }
+
+        /* 活动状态 */
+        .custom-range:active::-webkit-slider-thumb {
+            transform: scale(1.2);
+        }
+
+        .custom-range:active::-moz-range-thumb {
+            transform: scale(1.2);
+        }
+
+        /* 调整大小手柄样式 */
+        .resize-handle {
+            position: absolute;
+            top: 0;
+            width: 12px;
+            height: 100%;
+            cursor: ew-resize;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;  /* 隐藏手柄 */
+            z-index: 100;
+        }
+
+        .resize-handle-left {
+            left: -6px;
+        }
+
+        .resize-handle-right {
+            right: -6px;
+        }
+
+        /* 移除悬停效果 */
+        .resize-handle:hover {
+            opacity: 0;  /* 保持隐藏 */
+        }
+
+        /* 移除拖动时的样式 */
+        .resizing {
+            user-select: none;
+        }
+
+        /* 保存按钮样式 */
+        .save-width {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .save-width:hover {
+            opacity: 1;
+        }
+
+        /* 调整面板样式 */
+        #contentPanel {
+            min-width: 300px;
+            max-width: 85%;
+        }
+
+        #settingsPanel {
+            min-width: 200px;
+            transition: width 0.3s ease;
+        }
+
+        /* 固定右侧设置面板 */
+        #settingsPanel {
+            position: fixed;
+            right: 0;
+            top: 0;
+            height: 100vh;
+            width: 300px;
+            overflow-y: auto;
+            padding: 20px;
+            background: var(--card-bg);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        /* 调整内容区域以适应固定的设置面板 */
+        #contentPanel {
+            margin-right: 320px; /* 设置面板宽度 + 间距 */
+            transition: all 0.3s ease;
+        }
+
+        /* 调整卡片容器样式 */
+        .card {
+            margin-bottom: 20px;
+            height: auto;
+        }
+
+        /* 确保滚动条样式在设置面板中正确显示 */
+        #settingsPanel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #settingsPanel::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+
+        #settingsPanel::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        /* 响应式布局调整 */
+        @media (max-width: 768px) {
+            #settingsPanel {
+                width: 100%;
+                height: auto;
+                position: static;
+                padding: 10px;
+            }
+            
+            #contentPanel {
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="reader-container">
+        <!-- 添加阅读进度指示器 -->
+        <div class="progress-indicator"></div>
+
+        <!-- 添加加载指示器 -->
+        <div id="loadingIndicator" class="alert alert-info" style="display: none;">
+            正在加载小说内容...
+        </div>
+        
+        <div class="row position-relative">
+            <!-- 阅读区域 -->
+            <div id="contentPanel">
+                <div class="card">
+                    <div class="card-body">
+                        <h1 id="chapterTitle" class="h3 mb-4"></h1>
+                        <div id="chapterContent" class="reader-content"></div>
+                        <div class="navigation">
+                            <button id="prevChapter" class="btn btn-secondary" style="display: none;">
+                                <i class="bi bi-arrow-left"></i> 上一章
+                            </button>
+                            <button id="nextChapter" class="btn btn-secondary" style="display: none;">
+                                下一章 <i class="bi bi-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧设置面板 -->
+            <div id="settingsPanel">
+                <!-- 目录卡片 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">目录</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="chapterList" class="chapter-list">
+                            <!-- 章节列表将在这里动态加载 -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 设置卡片 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">设置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <button class="btn btn-outline-dark" onclick="window.location.href='/'">
+                                <i class="bi bi-arrow-left"></i> 返回主页
+                            </button>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fontSize" class="form-label d-flex justify-content-between">
+                                字体大小 <span id="fontSizeValue">16px</span>
+                            </label>
+                            <input type="range" class="form-range custom-range" id="fontSize" 
+                                   min="12" max="32" value="16">
+                        </div>
+                        <div class="mb-3">
+                            <label for="fontFamily" class="form-label">字体</label>
+                            <select class="form-select" id="fontFamily">
+                                <option value="system-ui">系统默认</option>
+                                <option value="Microsoft YaHei">微软雅黑</option>
+                                <option value="SimSun">宋体</option>
+                                <option value="KaiTi">楷体</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">暗色模式</label>
+                            <label class="theme-switch">
+                                <input type="checkbox" id="themeSwitch">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">背景图片</label>
+                            <input type="file" class="form-control mb-2" id="bgImageInput" accept="image/*">
+                            <div class="input-group">
+                                <label class="input-group-text" for="bgOpacity">透明度</label>
+                                <input type="range" class="form-range" id="bgOpacity" 
+                                       min="0" max="1" step="0.1" value="0.1" 
+                                       style="flex: 1; padding: 0 10px;">
+                                <span class="input-group-text" id="bgOpacityValue">0.1</span>
+                            </div>
+                            <button class="btn btn-outline-danger btn-sm mt-2" id="removeBg">
+                                <i class="bi bi-trash"></i> 移除背景
+                            </button>
+                        </div>
+                        <div class="mb-3">
+                            <label for="lineHeight" class="form-label d-flex justify-content-between">
+                                行间距 <span id="lineHeightValue">1.8</span>
+                            </label>
+                            <input type="range" class="form-range custom-range" id="lineHeight" 
+                                   min="1" max="3" step="0.1" value="1.8">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 添加快捷键提示 -->
+        <div class="shortcut-hint">
+            <p><kbd>←</kbd> / <kbd>→</kbd>：上一章/下一章</p>
+            <p><kbd>Esc</kbd>：显示/隐藏设置面板</p>
+            <p><kbd>Ctrl</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd>：调整字体大小</p>
+        </div>
+
+        <!-- 添加背景图片容器 -->
+        <div id="bgContainer" style="
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        ">
+            <img id="bgImage" style="
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                opacity: 0.1;
+            ">
+        </div>
+    </div>
+
+    <script>
+        let currentNovelId = null;
+        let chapters = [];
+        let currentChapterIndex = 0;
+
+        // 显示加载指示器
+        function showLoading() {
+            document.getElementById('loadingIndicator').style.display = 'block';
+        }
+
+        // 隐藏加载指示器
+        function hideLoading() {
+            document.getElementById('loadingIndicator').style.display = 'none';
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            document.getElementById('chapterContent').innerHTML = `
+                <div class="alert alert-danger">
+                    ${message}
+                </div>`;
+        }
+
+        // 初始化阅读器
+        async function initializeReader() {
+            showLoading();
+            try {
+                // 从URL获取小说ID
+                const urlParams = new URLSearchParams(window.location.search);
+                let novelId = urlParams.get('novel_id');
+                
+                if (!novelId) {
+                    novelId = prompt('请输入小说ID:');
+                    if (!novelId) {
+                        hideLoading();
+                        return;
+                    }
+                }
+                
+                currentNovelId = novelId;
+                console.log('正在加载小说ID:', novelId);
+                
+                // 先下载小说
+                const downloadResponse = await fetch(`/api/download/${novelId}`);
+                const downloadData = await downloadResponse.json();
+                console.log('下载响应:', downloadData);
+                
+                // 获取章节列表
+                const chaptersResponse = await fetch(`/api/chapters/${novelId}`);
+                if (!chaptersResponse.ok) {
+                    throw new Error(`获取章节列表失败: ${chaptersResponse.statusText}`);
+                }
+                
+                const data = await chaptersResponse.json();
+                console.log('章节列表数据:', data);
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                if (!data.chapters || data.chapters.length === 0) {
+                    throw new Error('没有找到章节列表');
+                }
+                
+                chapters = data.chapters;
+                document.getElementById('chapterTitle').innerText = `${data.name} - ${chapters[0].title}`;
+                
+                // 生成章节列表HTML
+                const chapterListHtml = chapters.map((chapter, index) => `
+                    <div class="chapter-item ${index === currentChapterIndex ? 'active' : ''}" 
+                         style="cursor: pointer; padding: 5px;">
+                        <a href="#" onclick="loadChapter(${index}); return false;">
+                            ${chapter.title}
+                        </a>
+                    </div>
+                `).join('');
+                
+                document.getElementById('chapterList').innerHTML = chapterListHtml;
+                
+                // 加载第一章
+                await loadChapter(0);
+                
+            } catch (error) {
+                console.error('初始化阅读器失败:', error);
+                showError(`初始化阅读器失败: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // 加载章节
+        async function loadChapter(index) {
+            if (index < 0 || index >= chapters.length) return;
+            
+            showLoading();
+            currentChapterIndex = index;
+            const chapter = chapters[index];
+            
+            try {
+                console.log('加载章节:', chapter.title);
+                const response = await fetch(`/api/read/${currentNovelId}/${encodeURIComponent(chapter.title)}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('章节内容数据:', data);
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                document.getElementById('chapterTitle').innerText = data.title;
+                document.getElementById('chapterContent').innerHTML = data.content.replace(/\n/g, '<br>');
+                
+                // 更新导航按钮
+                document.getElementById('prevChapter').style.display = index > 0 ? 'inline-block' : 'none';
+                document.getElementById('nextChapter').style.display = index < chapters.length - 1 ? 'inline-block' : 'none';
+                
+                // 高亮当前章节
+                document.querySelectorAll('.chapter-item').forEach((item, i) => {
+                    item.classList.toggle('active', i === index);
+                });
+                
+                // 滚动到顶部
+                window.scrollTo(0, 0);
+                
+            } catch (error) {
+                console.error('加载章节失败:', error);
+                showError(`加载章节失败: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // 设置字体大小
+        document.getElementById('fontSize').addEventListener('input', function(e) {
+            const size = e.target.value;
+            document.getElementById('fontSizeValue').textContent = `${size}px`;
+            document.getElementById('chapterContent').style.fontSize = `${size}px`;
+        });
+
+        // 导航按钮事件
+        document.getElementById('prevChapter').addEventListener('click', () => {
+            loadChapter(currentChapterIndex - 1);
+        });
+
+        document.getElementById('nextChapter').addEventListener('click', () => {
+            loadChapter(currentChapterIndex + 1);
+        });
+
+        // 初始化阅读器
+        initializeReader();
+
+        // 添加主题切换功能
+        const themeSwitch = document.getElementById('themeSwitch');
+        
+        // 检查本地存储中的主题设置
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeSwitch.checked = true;
+        }
+
+        // 监听主题切换
+        themeSwitch.addEventListener('change', function() {
+            if (this.checked) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+            }
+        });
+
+        // 检查系统主题偏好
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeSwitch.checked = true;
+        }
+
+        // 监听系统主题变化
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            const newTheme = e.matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            themeSwitch.checked = e.matches;
+        });
+
+        // 添加阅读进度指示器
+        const progressIndicator = document.querySelector('.progress-indicator');
+        window.addEventListener('scroll', function() {
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight - windowHeight;
+            const scrolled = window.scrollY;
+            const progress = (scrolled / documentHeight) * 100;
+            progressIndicator.style.width = `${progress}%`;
+        });
+
+        // 添加键盘快捷键
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowLeft') {
+                document.getElementById('prevChapter').click();
+            } else if (e.key === 'ArrowRight') {
+                document.getElementById('nextChapter').click();
+            }
+        });
+
+        // 保存阅读进度
+        function saveProgress() {
+            if (currentNovelId) {
+                localStorage.setItem(`reading_progress_${currentNovelId}`, JSON.stringify({
+                    chapterIndex: currentChapterIndex,
+                    scrollPosition: window.scrollY
+                }));
+            }
+        }
+
+        // 加载保存的阅读进度
+        function loadProgress() {
+            if (currentNovelId) {
+                const savedProgress = localStorage.getItem(`reading_progress_${currentNovelId}`);
+                if (savedProgress) {
+                    const progress = JSON.parse(savedProgress);
+                    loadChapter(progress.chapterIndex).then(() => {
+                        window.scrollTo(0, progress.scrollPosition);
+                    });
+                }
+            }
+        }
+
+        // 字体设置
+        document.getElementById('fontFamily').addEventListener('change', function() {
+            document.getElementById('chapterContent').style.fontFamily = this.value;
+            localStorage.setItem('reader_fontFamily', this.value);
+        });
+
+        // 加载保存的设置
+        const savedFontFamily = localStorage.getItem('reader_fontFamily');
+        if (savedFontFamily) {
+            document.getElementById('fontFamily').value = savedFontFamily;
+            document.getElementById('chapterContent').style.fontFamily = savedFontFamily;
+        }
+
+        // 定期保存阅读进度
+        setInterval(saveProgress, 5000);
+
+        // 背景图片功能
+        document.addEventListener('DOMContentLoaded', function() {
+            const bgImageInput = document.getElementById('bgImageInput');
+            const bgOpacity = document.getElementById('bgOpacity');
+            const bgOpacityValue = document.getElementById('bgOpacityValue');
+            const bgImage = document.getElementById('bgImage');
+            const removeBg = document.getElementById('removeBg');
+            
+            // 设置默认透明度为0.8
+            bgOpacity.value = 0.8;
+            bgOpacityValue.textContent = '0.8';
+            
+            // 加载保存的背景图片
+            const savedBgImage = localStorage.getItem('reader_bgImage');
+            const savedBgOpacity = localStorage.getItem('reader_bgOpacity') || '0.8';
+            
+            if (savedBgImage) {
+                bgImage.src = savedBgImage;
+                bgImage.style.opacity = savedBgOpacity;
+                bgOpacity.value = savedBgOpacity;
+                bgOpacityValue.textContent = savedBgOpacity;
+            }
+            
+            // 处理图片上传
+            bgImageInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        bgImage.src = e.target.result;
+                        localStorage.setItem('reader_bgImage', e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            // 处理透明度调整
+            bgOpacity.addEventListener('input', function() {
+                const opacity = this.value;
+                bgImage.style.opacity = opacity;
+                bgOpacityValue.textContent = opacity;
+                localStorage.setItem('reader_bgOpacity', opacity);
+            });
+            
+            // 移除背景
+            removeBg.addEventListener('click', function() {
+                bgImage.src = '';
+                bgImage.style.opacity = 0.1;
+                bgOpacity.value = 0.1;
+                bgOpacityValue.textContent = '0.1';
+                localStorage.removeItem('reader_bgImage');
+                localStorage.removeItem('reader_bgOpacity');
+                bgImageInput.value = ''; // 清空文件输入
+            });
+        });
+
+        // 添加行间距控制
+        const lineHeight = document.getElementById('lineHeight');
+        const lineHeightValue = document.getElementById('lineHeightValue');
+
+        lineHeight.addEventListener('input', function() {
+            const value = this.value;
+            lineHeightValue.textContent = value;
+            document.getElementById('chapterContent').style.lineHeight = value;
+            localStorage.setItem('reader_lineHeight', value);
+            
+            // 更新滑动轨道的背景
+            updateRangeBackground(this);
+        });
+
+        // 添加字大小控制的值显示和滑动轨道背景
+        const fontSize = document.getElementById('fontSize');
+        const fontSizeValue = document.getElementById('fontSizeValue');
+
+        fontSize.addEventListener('input', function() {
+            const value = this.value;
+            fontSizeValue.textContent = `${value}px`;
+            document.getElementById('chapterContent').style.fontSize = `${value}px`;
+            localStorage.setItem('reader_fontSize', value);
+            
+            // 更新滑动轨道的背景
+            updateRangeBackground(this);
+        });
+
+        // 更新滑动轨道背景的函数
+        function updateRangeBackground(element) {
+            const min = parseFloat(element.min) || 0;
+            const max = parseFloat(element.max) || 100;
+            const value = parseFloat(element.value);
+            const percentage = ((value - min) / (max - min)) * 100;
+            
+            // 设置自定义属性
+            element.style.setProperty('--range-progress', percentage + '%');
+            
+            // 更新轨道背景
+            element.style.background = `linear-gradient(to right, #007bff 0%, #007bff ${percentage}%, #e9ecef ${percentage}%, #e9ecef 100%)`;
+        }
+
+        // 加载保存的设置
+        document.addEventListener('DOMContentLoaded', function() {
+            // 加载行间距设置
+            const savedLineHeight = localStorage.getItem('reader_lineHeight');
+            if (savedLineHeight) {
+                lineHeight.value = savedLineHeight;
+                lineHeightValue.textContent = savedLineHeight;
+                document.getElementById('chapterContent').style.lineHeight = savedLineHeight;
+                updateRangeBackground(lineHeight);
+            }
+            
+            // 加载字体大小设置
+            const savedFontSize = localStorage.getItem('reader_fontSize');
+            if (savedFontSize) {
+                fontSize.value = savedFontSize;
+                fontSizeValue.textContent = `${savedFontSize}px`;
+                document.getElementById('chapterContent').style.fontSize = `${savedFontSize}px`;
+                updateRangeBackground(fontSize);
+            }
+            
+            // 初始化所有范围输入控件的背景
+            document.querySelectorAll('.custom-range').forEach(range => {
+                updateRangeBackground(range);
+            });
+        });
+
+        // 修改拖动功能
+        document.addEventListener('DOMContentLoaded', function() {
+            const contentPanel = document.getElementById('contentPanel');
+            const settingsPanel = document.getElementById('settingsPanel');
+            const container = contentPanel.parentElement;
+            let isResizing = false;
+            let currentHandle = null;
+            let startX;
+            let startWidth;
+            let startLeft;
+            let containerWidth;
+            let saveTimeout;
+
+            // 开始拖动
+            function startResize(e, handle) {
+                isResizing = true;
+                currentHandle = handle;
+                startX = e.pageX;
+                startWidth = contentPanel.offsetWidth;
+                startLeft = contentPanel.offsetLeft;
+                containerWidth = container.offsetWidth;
+                document.body.classList.add('resizing');
+            }
+
+            // 拖动过程
+            function resize(e) {
+                if (!isResizing) return;
+
+                const dx = e.pageX - startX;
+                let newWidth = startWidth;
+                let newLeft = startLeft;
+
+                if (currentHandle === 'right') {
+                    newWidth = startWidth + dx;
+                } else {
+                    newWidth = startWidth - dx;
+                    newLeft = startLeft + dx;
+                }
+
+                // 限制范围，确保设置面板宽度不变
+                const settingsPanelWidth = settingsPanel.offsetWidth;
+                const maxWidth = containerWidth - settingsPanelWidth;
+                const minWidth = containerWidth * 0.3;
+
+                if (newWidth >= minWidth && newWidth <= maxWidth) {
+                    contentPanel.style.width = `${newWidth}px`;
+                    contentPanel.style.transform = `translateX(${newLeft}px)`;
+
+                    // 自动保存布局（使用防抖）
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(() => {
+                        localStorage.setItem('reader_content_width', contentPanel.style.width);
+                        localStorage.setItem('reader_content_left', contentPanel.style.transform);
+                    }, 500);
+                }
+            }
+
+            // 结束拖动
+            function stopResize() {
+                if (isResizing) {
+                    isResizing = false;
+                    document.body.classList.remove('resizing');
+                }
+            }
+
+            // 加载保存的布局
+            const savedWidth = localStorage.getItem('reader_content_width');
+            const savedLeft = localStorage.getItem('reader_content_left');
+            if (savedWidth) contentPanel.style.width = savedWidth;
+            if (savedLeft) contentPanel.style.transform = savedLeft;
+
+            // 添加事件监听
+            document.getElementById('resizeHandleLeft').addEventListener('mousedown', e => {
+                startResize(e, 'left');
+            });
+            
+            document.getElementById('resizeHandleRight').addEventListener('mousedown', e => {
+                startResize(e, 'right');
+            });
+
+            document.addEventListener('mousemove', resize);
+            document.addEventListener('mouseup', stopResize);
+
+            // 双击重置
+            function resetLayout() {
+                contentPanel.style.width = '75%';
+                contentPanel.style.transform = 'translateX(0)';
+                localStorage.removeItem('reader_content_width');
+                localStorage.removeItem('reader_content_left');
+            }
+
+            document.getElementById('resizeHandleLeft').addEventListener('dblclick', resetLayout);
+            document.getElementById('resizeHandleRight').addEventListener('dblclick', resetLayout);
+
+            // 窗口大小改变时调整
+            window.addEventListener('resize', function() {
+                const containerWidth = container.offsetWidth;
+                const settingsPanelWidth = settingsPanel.offsetWidth;
+                const contentWidth = contentPanel.offsetWidth;
+                
+                // 确保内容面板不会超出可用空间
+                if (contentWidth > containerWidth - settingsPanelWidth) {
+                    contentPanel.style.width = `${containerWidth - settingsPanelWidth}px`;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

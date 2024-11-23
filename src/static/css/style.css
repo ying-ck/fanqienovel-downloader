@@ -1,0 +1,392 @@
+:root {
+    --primary-color: #212529;
+    --secondary-color: #6c757d;
+    --background-color: #f8f9fa;
+    --card-background: #fff;
+    --text-color: #333;
+    --border-color: #dee2e6;
+    --hover-color: #e9ecef;
+    --shadow-color: rgba(0,0,0,0.1);
+}
+
+/* 暗色模式变量 */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --primary-color: #f8f9fa;
+        --secondary-color: #adb5bd;
+        --background-color: #212529;
+        --card-background: #343a40;
+        --text-color: #f8f9fa;
+        --border-color: #495057;
+        --hover-color: #495057;
+        --shadow-color: rgba(0,0,0,0.3);
+    }
+}
+
+/* 基础样式 */
+body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    margin: 0;
+}
+
+/* 组件样式 */
+.card {
+    background-color: var(--card-background);
+    border: none;
+    box-shadow: 0 2px 4px var(--shadow-color);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px var(--shadow-color);
+}
+
+/* 进度模态框样式 */
+#progressModal {
+    --modal-max-height: 80vh;
+    --modal-width: 600px;
+}
+
+#progressModal .modal-dialog {
+    max-width: var(--modal-width);
+    margin: 1.75rem auto;
+}
+
+#progressModal .modal-content {
+    max-height: var(--modal-max-height);
+    display: flex;
+    flex-direction: column;
+    border-radius: 8px;
+}
+
+#progressModal .modal-header {
+    flex-shrink: 0;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#progressModal .modal-body {
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    overflow: hidden;
+    gap: 1rem;
+}
+
+/* 日志容器样式 */
+.log-container {
+    flex: 1;
+    min-height: 200px;
+    overflow-y: auto;
+    background-color: var(--background-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 10px;
+}
+
+#logOutput {
+    font-family: monospace;
+    font-size: 0.9em;
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.5;
+}
+
+/* 进度条容器样式 */
+.progress-container {
+    flex-shrink: 0;
+    min-height: 50px;
+    margin-bottom: 10px;
+}
+
+.progress {
+    height: 24px !important;
+    margin: 0 !important;
+    background-color: var(--background-color);
+}
+
+.progress-bar {
+    font-size: 14px;
+    line-height: 24px;
+    min-height: 24px !important;
+}
+
+/* 当前章节信息样式 */
+#currentChapter {
+    flex-shrink: 0;
+    min-height: 30px;
+    padding: 0.5rem;
+    background-color: var(--background-color);
+    border-radius: 4px;
+    margin: 0;
+}
+
+/* 队列状态样式 */
+.queue-status {
+    flex-shrink: 0;
+    min-height: 30px;
+    font-size: 0.9em;
+    color: var(--text-color);
+    text-align: center;
+    padding: 5px;
+    background-color: var(--background-color);
+    border-radius: 4px;
+    margin: 5px 0;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    #progressModal {
+        --modal-width: 95vw;
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .container {
+        padding: 0.5rem;
+    }
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease;
+}
+
+/* 添加平滑滚动 */
+html {
+    scroll-behavior: smooth;
+}
+
+/* 导航栏阴影 */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* 卡片悬停效果 */
+.card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+/* 按钮悬停效果 */
+.btn {
+    transition: transform 0.2s;
+}
+
+.btn:hover {
+    transform: scale(1.05);
+}
+
+/* 下载队列列表样式 */
+#queueList {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.queue-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.queue-item:last-child {
+    border-bottom: none;
+}
+
+/* Toast 通知样式 */
+.toast {
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+}
+
+/* 进度条样式 */
+.progress {
+    height: 25px;
+    border-radius: 15px;
+    background-color: #f0f0f0;
+}
+
+.progress-bar {
+    border-radius: 15px;
+    transition: width 0.3s ease;
+}
+
+/* 日志容器样式 */
+.log-container {
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    border: 1px solid #dee2e6;
+}
+
+#logOutput {
+    font-family: 'Consolas', monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0;
+    padding: 1rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* 加载动画 */
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0,0,0,.1);
+    border-radius: 50%;
+    border-top-color: #000;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 页脚样式 */
+.footer {
+    background-color: var(--dark);
+    width: 100%;
+    padding: 1rem 0;
+}
+
+/* 快捷键提示 */
+.shortcut-hint {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    z-index: 1000;
+    display: none;
+}
+
+/* 下载进度浮动按钮 */
+#showProgress {
+    bottom: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+#showProgress:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+/* 下载统计 */
+.download-stats {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 5px;
+    padding: 10px;
+    margin-bottom: 20px;
+}
+
+.download-stats .stat-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+}
+
+/* 改进的卡片样式 */
+.card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+/* 改进的按钮样式 */
+.btn {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s, height 0.3s;
+}
+
+.btn:active::after {
+    width: 200px;
+    height: 200px;
+    opacity: 0;
+}
+
+/* 确保主内容区域有最小高度 */
+main {
+    min-height: calc(100vh - 56px - 100px); /* 减去导航栏和页脚的高度 */
+    padding-bottom: 2rem; /* 添加一些底部内边距 */
+}
+
+/* 修改容器样式以适应新的布局 */
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
+}

@@ -1,0 +1,154 @@
+<div class="search-container">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-link-45deg"></i> 直接下载
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-link"></i>
+                        </span>
+                        <input type="text" id="directInput" class="form-control" 
+                               placeholder="输入小说ID或链接">
+                        <button class="btn btn-dark" onclick="downloadDirect()">
+                            <i class="bi bi-download"></i> 下载
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-search"></i> 搜索下载
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="searchInput" class="form-control" 
+                               placeholder="输入小说名称或关键词">
+                        <button class="btn btn-dark" id="searchBtn">
+                            <i class="bi bi-search"></i> 搜索
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="searchResults" class="row">
+        <!-- Results will be dynamically added here -->
+    </div>
+</div>
+
+<script>
+// 直接下载功能
+function downloadDirect() {
+    const input = document.getElementById('directInput').value.trim();
+    if (!input) {
+        alert('请输入小说ID或链接');
+        return;
+    }
+    
+    // 提取ID（如果是链接的话）
+    const id = input.includes('/') ? input.split('/').pop() : input;
+    
+    fetch(`/api/download/${id}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('下载失败: ' + data.error);
+            } else {
+                alert('已添加到下载队列');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('下载失败，请检查控制台获取详细信息');
+        });
+}
+
+// 搜索功能
+document.getElementById('searchBtn').addEventListener('click', () => {
+    const keyword = document.getElementById('searchInput').value.trim();
+    if (!keyword) {
+        alert('请输入搜索关键词');
+        return;
+    }
+
+    fetch(`/api/search?keyword=${encodeURIComponent(keyword)}`)
+        .then(response => response.json())
+        .then(results => {
+            displaySearchResults(results);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('搜索失败，请检查控制台获取详细信息');
+        });
+});
+
+function downloadNovel(novelId) {
+    fetch(`/api/download/${novelId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('下载失败: ' + data.error);
+            } else {
+                alert('已添加到下载队列');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('下载失败，请检查控制台获取详细信息');
+        });
+}
+
+// 修改搜索结果的渲染部分
+function displaySearchResults(results) {
+    const searchResults = document.getElementById('searchResults');
+    if (results.length === 0) {
+        searchResults.innerHTML = `
+            <div class="col">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 没有找到相关小说
+                </div>
+            </div>`;
+        return;
+    }
+
+    searchResults.innerHTML = results.map(result => `
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">
+                        <i class="bi bi-book"></i> ${result.book_data[0].book_name}
+                    </h5>
+                    <div class="card-text">
+                        <p class="mb-2">
+                            <i class="bi bi-person"></i> 作者: ${result.book_data[0].author}
+                        </p>
+                        <p class="mb-2">
+                            <i class="bi bi-file-text"></i> 字数: ${result.book_data[0].word_number}
+                        </p>
+                    </div>
+                    <button class="btn btn-primary btn-sm" 
+                            onclick="downloadNovel('${result.book_data[0].book_id}')">
+                        <i class="bi bi-download"></i> 下载
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+</script>
