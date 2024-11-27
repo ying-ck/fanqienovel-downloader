@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -143,11 +144,11 @@
             border-radius: 50%;
         }
 
-        input:checked + .slider {
+        input:checked+.slider {
             background-color: #2196F3;
         }
 
-        input:checked + .slider:before {
+        input:checked+.slider:before {
             transform: translateX(26px);
         }
 
@@ -308,9 +309,10 @@
             background: #007bff;
             cursor: pointer;
             border: 2px solid #fff;
-            box-shadow: 0 0 2px rgba(0,0,0,0.2);
+            box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
             transition: all 0.2s ease;
-            margin-top: -4px; /* 调整球的垂直位置 */
+            margin-top: -4px;
+            /* 调整球的垂直位置 */
         }
 
         .custom-range::-moz-range-thumb {
@@ -320,7 +322,7 @@
             background: #007bff;
             cursor: pointer;
             border: 2px solid #fff;
-            box-shadow: 0 0 2px rgba(0,0,0,0.2);
+            box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
             transition: all 0.2s ease;
         }
 
@@ -376,7 +378,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0;  /* 隐藏手柄 */
+            opacity: 0;
+            /* 隐藏手柄 */
             z-index: 100;
         }
 
@@ -390,7 +393,8 @@
 
         /* 移除悬停效果 */
         .resize-handle:hover {
-            opacity: 0;  /* 保持隐藏 */
+            opacity: 0;
+            /* 保持隐藏 */
         }
 
         /* 移除拖动时的样式 */
@@ -439,7 +443,8 @@
 
         /* 调整内容区域以适应固定的设置面板 */
         #contentPanel {
-            margin-right: 320px; /* 设置面板宽度 + 间距 */
+            margin-right: 320px;
+            /* 设置面板宽度 + 间距 */
             transition: all 0.3s ease;
         }
 
@@ -471,13 +476,14 @@
                 position: static;
                 padding: 10px;
             }
-            
+
             #contentPanel {
                 margin-right: 0;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="reader-container">
         <!-- 添加阅读进度指示器 -->
@@ -487,7 +493,7 @@
         <div id="loadingIndicator" class="alert alert-info" style="display: none;">
             正在加载小说内容...
         </div>
-        
+
         <div class="row position-relative">
             <!-- 阅读区域 -->
             <div id="contentPanel">
@@ -506,7 +512,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- 右侧设置面板 -->
             <div id="settingsPanel">
                 <!-- 目录卡片 -->
@@ -520,7 +526,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- 设置卡片 -->
                 <div class="card">
                     <div class="card-header">
@@ -536,8 +542,8 @@
                             <label for="fontSize" class="form-label d-flex justify-content-between">
                                 字体大小 <span id="fontSizeValue">16px</span>
                             </label>
-                            <input type="range" class="form-range custom-range" id="fontSize" 
-                                   min="12" max="32" value="16">
+                            <input type="range" class="form-range custom-range" id="fontSize" min="12" max="32"
+                                value="16">
                         </div>
                         <div class="mb-3">
                             <label for="fontFamily" class="form-label">字体</label>
@@ -560,9 +566,8 @@
                             <input type="file" class="form-control mb-2" id="bgImageInput" accept="image/*">
                             <div class="input-group">
                                 <label class="input-group-text" for="bgOpacity">透明度</label>
-                                <input type="range" class="form-range" id="bgOpacity" 
-                                       min="0" max="1" step="0.1" value="0.1" 
-                                       style="flex: 1; padding: 0 10px;">
+                                <input type="range" class="form-range" id="bgOpacity" min="0" max="1" step="0.1"
+                                    value="0.1" style="flex: 1; padding: 0 10px;">
                                 <span class="input-group-text" id="bgOpacityValue">0.1</span>
                             </div>
                             <button class="btn btn-outline-danger btn-sm mt-2" id="removeBg">
@@ -573,8 +578,8 @@
                             <label for="lineHeight" class="form-label d-flex justify-content-between">
                                 行间距 <span id="lineHeightValue">1.8</span>
                             </label>
-                            <input type="range" class="form-range custom-range" id="lineHeight" 
-                                   min="1" max="3" step="0.1" value="1.8">
+                            <input type="range" class="form-range custom-range" id="lineHeight" min="1" max="3"
+                                step="0.1" value="1.8">
                         </div>
                     </div>
                 </div>
@@ -638,7 +643,7 @@
                 // 从URL获取小说ID
                 const urlParams = new URLSearchParams(window.location.search);
                 let novelId = urlParams.get('novel_id');
-                
+
                 if (!novelId) {
                     novelId = prompt('请输入小说ID:');
                     if (!novelId) {
@@ -646,35 +651,35 @@
                         return;
                     }
                 }
-                
+
                 currentNovelId = novelId;
                 console.log('正在加载小说ID:', novelId);
-                
+
                 // 先下载小说
                 const downloadResponse = await fetch(`/api/download/${novelId}`);
                 const downloadData = await downloadResponse.json();
                 console.log('下载响应:', downloadData);
-                
+
                 // 获取章节列表
                 const chaptersResponse = await fetch(`/api/chapters/${novelId}`);
                 if (!chaptersResponse.ok) {
                     throw new Error(`获取章节列表失败: ${chaptersResponse.statusText}`);
                 }
-                
+
                 const data = await chaptersResponse.json();
                 console.log('章节列表数据:', data);
-                
+
                 if (data.error) {
                     throw new Error(data.error);
                 }
-                
+
                 if (!data.chapters || data.chapters.length === 0) {
                     throw new Error('没有找到章节列表');
                 }
-                
+
                 chapters = data.chapters;
                 document.getElementById('chapterTitle').innerText = `${data.name} - ${chapters[0].title}`;
-                
+
                 // 生成章节列表HTML
                 const chapterListHtml = chapters.map((chapter, index) => `
                     <div class="chapter-item ${index === currentChapterIndex ? 'active' : ''}" 
@@ -684,12 +689,12 @@
                         </a>
                     </div>
                 `).join('');
-                
+
                 document.getElementById('chapterList').innerHTML = chapterListHtml;
-                
+
                 // 加载第一章
                 await loadChapter(0);
-                
+
             } catch (error) {
                 console.error('初始化阅读器失败:', error);
                 showError(`初始化阅读器失败: ${error.message}`);
@@ -701,40 +706,40 @@
         // 加载章节
         async function loadChapter(index) {
             if (index < 0 || index >= chapters.length) return;
-            
+
             showLoading();
             currentChapterIndex = index;
             const chapter = chapters[index];
-            
+
             try {
                 console.log('加载章节:', chapter.title);
                 const response = await fetch(`/api/read/${currentNovelId}/${encodeURIComponent(chapter.title)}`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
                 console.log('章节内容数据:', data);
-                
+
                 if (data.error) {
                     throw new Error(data.error);
                 }
-                
+
                 document.getElementById('chapterTitle').innerText = data.title;
                 document.getElementById('chapterContent').innerHTML = data.content.replace(/\n/g, '<br>');
-                
+
                 // 更新导航按钮
                 document.getElementById('prevChapter').style.display = index > 0 ? 'inline-block' : 'none';
                 document.getElementById('nextChapter').style.display = index < chapters.length - 1 ? 'inline-block' : 'none';
-                
+
                 // 高亮当前章节
                 document.querySelectorAll('.chapter-item').forEach((item, i) => {
                     item.classList.toggle('active', i === index);
                 });
-                
+
                 // 滚动到顶部
                 window.scrollTo(0, 0);
-                
+
             } catch (error) {
                 console.error('加载章节失败:', error);
                 showError(`加载章节失败: ${error.message}`);
@@ -744,7 +749,7 @@
         }
 
         // 设置字体大小
-        document.getElementById('fontSize').addEventListener('input', function(e) {
+        document.getElementById('fontSize').addEventListener('input', function (e) {
             const size = e.target.value;
             document.getElementById('fontSizeValue').textContent = `${size}px`;
             document.getElementById('chapterContent').style.fontSize = `${size}px`;
@@ -764,7 +769,7 @@
 
         // 添加主题切换功能
         const themeSwitch = document.getElementById('themeSwitch');
-        
+
         // 检查本地存储中的主题设置
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
@@ -773,7 +778,7 @@
         }
 
         // 监听主题切换
-        themeSwitch.addEventListener('change', function() {
+        themeSwitch.addEventListener('change', function () {
             if (this.checked) {
                 document.documentElement.setAttribute('data-theme', 'dark');
                 localStorage.setItem('theme', 'dark');
@@ -798,7 +803,7 @@
 
         // 添加阅读进度指示器
         const progressIndicator = document.querySelector('.progress-indicator');
-        window.addEventListener('scroll', function() {
+        window.addEventListener('scroll', function () {
             const windowHeight = window.innerHeight;
             const documentHeight = document.documentElement.scrollHeight - windowHeight;
             const scrolled = window.scrollY;
@@ -807,7 +812,7 @@
         });
 
         // 添加键盘快捷键
-        document.addEventListener('keydown', function(e) {
+        document.addEventListener('keydown', function (e) {
             if (e.key === 'ArrowLeft') {
                 document.getElementById('prevChapter').click();
             } else if (e.key === 'ArrowRight') {
@@ -839,7 +844,7 @@
         }
 
         // 字体设置
-        document.getElementById('fontFamily').addEventListener('change', function() {
+        document.getElementById('fontFamily').addEventListener('change', function () {
             document.getElementById('chapterContent').style.fontFamily = this.value;
             localStorage.setItem('reader_fontFamily', this.value);
         });
@@ -855,51 +860,51 @@
         setInterval(saveProgress, 5000);
 
         // 背景图片功能
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const bgImageInput = document.getElementById('bgImageInput');
             const bgOpacity = document.getElementById('bgOpacity');
             const bgOpacityValue = document.getElementById('bgOpacityValue');
             const bgImage = document.getElementById('bgImage');
             const removeBg = document.getElementById('removeBg');
-            
+
             // 设置默认透明度为0.8
             bgOpacity.value = 0.8;
             bgOpacityValue.textContent = '0.8';
-            
+
             // 加载保存的背景图片
             const savedBgImage = localStorage.getItem('reader_bgImage');
             const savedBgOpacity = localStorage.getItem('reader_bgOpacity') || '0.8';
-            
+
             if (savedBgImage) {
                 bgImage.src = savedBgImage;
                 bgImage.style.opacity = savedBgOpacity;
                 bgOpacity.value = savedBgOpacity;
                 bgOpacityValue.textContent = savedBgOpacity;
             }
-            
+
             // 处理图片上传
-            bgImageInput.addEventListener('change', function(e) {
+            bgImageInput.addEventListener('change', function (e) {
                 const file = e.target.files[0];
                 if (file) {
                     const reader = new FileReader();
-                    reader.onload = function(e) {
+                    reader.onload = function (e) {
                         bgImage.src = e.target.result;
                         localStorage.setItem('reader_bgImage', e.target.result);
                     };
                     reader.readAsDataURL(file);
                 }
             });
-            
+
             // 处理透明度调整
-            bgOpacity.addEventListener('input', function() {
+            bgOpacity.addEventListener('input', function () {
                 const opacity = this.value;
                 bgImage.style.opacity = opacity;
                 bgOpacityValue.textContent = opacity;
                 localStorage.setItem('reader_bgOpacity', opacity);
             });
-            
+
             // 移除背景
-            removeBg.addEventListener('click', function() {
+            removeBg.addEventListener('click', function () {
                 bgImage.src = '';
                 bgImage.style.opacity = 0.1;
                 bgOpacity.value = 0.1;
@@ -914,12 +919,12 @@
         const lineHeight = document.getElementById('lineHeight');
         const lineHeightValue = document.getElementById('lineHeightValue');
 
-        lineHeight.addEventListener('input', function() {
+        lineHeight.addEventListener('input', function () {
             const value = this.value;
             lineHeightValue.textContent = value;
             document.getElementById('chapterContent').style.lineHeight = value;
             localStorage.setItem('reader_lineHeight', value);
-            
+
             // 更新滑动轨道的背景
             updateRangeBackground(this);
         });
@@ -928,12 +933,12 @@
         const fontSize = document.getElementById('fontSize');
         const fontSizeValue = document.getElementById('fontSizeValue');
 
-        fontSize.addEventListener('input', function() {
+        fontSize.addEventListener('input', function () {
             const value = this.value;
             fontSizeValue.textContent = `${value}px`;
             document.getElementById('chapterContent').style.fontSize = `${value}px`;
             localStorage.setItem('reader_fontSize', value);
-            
+
             // 更新滑动轨道的背景
             updateRangeBackground(this);
         });
@@ -944,16 +949,16 @@
             const max = parseFloat(element.max) || 100;
             const value = parseFloat(element.value);
             const percentage = ((value - min) / (max - min)) * 100;
-            
+
             // 设置自定义属性
             element.style.setProperty('--range-progress', percentage + '%');
-            
+
             // 更新轨道背景
             element.style.background = `linear-gradient(to right, #007bff 0%, #007bff ${percentage}%, #e9ecef ${percentage}%, #e9ecef 100%)`;
         }
 
         // 加载保存的设置
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // 加载行间距设置
             const savedLineHeight = localStorage.getItem('reader_lineHeight');
             if (savedLineHeight) {
@@ -962,7 +967,7 @@
                 document.getElementById('chapterContent').style.lineHeight = savedLineHeight;
                 updateRangeBackground(lineHeight);
             }
-            
+
             // 加载字体大小设置
             const savedFontSize = localStorage.getItem('reader_fontSize');
             if (savedFontSize) {
@@ -971,7 +976,7 @@
                 document.getElementById('chapterContent').style.fontSize = `${savedFontSize}px`;
                 updateRangeBackground(fontSize);
             }
-            
+
             // 初始化所有范围输入控件的背景
             document.querySelectorAll('.custom-range').forEach(range => {
                 updateRangeBackground(range);
@@ -979,7 +984,7 @@
         });
 
         // 修改拖动功能
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const contentPanel = document.getElementById('contentPanel');
             const settingsPanel = document.getElementById('settingsPanel');
             const container = contentPanel.parentElement;
@@ -1053,7 +1058,7 @@
             document.getElementById('resizeHandleLeft').addEventListener('mousedown', e => {
                 startResize(e, 'left');
             });
-            
+
             document.getElementById('resizeHandleRight').addEventListener('mousedown', e => {
                 startResize(e, 'right');
             });
@@ -1073,11 +1078,11 @@
             document.getElementById('resizeHandleRight').addEventListener('dblclick', resetLayout);
 
             // 窗口大小改变时调整
-            window.addEventListener('resize', function() {
+            window.addEventListener('resize', function () {
                 const containerWidth = container.offsetWidth;
                 const settingsPanelWidth = settingsPanel.offsetWidth;
                 const contentWidth = contentPanel.offsetWidth;
-                
+
                 // 确保内容面板不会超出可用空间
                 if (contentWidth > containerWidth - settingsPanelWidth) {
                     contentPanel.style.width = `${containerWidth - settingsPanelWidth}px`;
@@ -1086,4 +1091,5 @@
         });
     </script>
 </body>
+
 </html>
