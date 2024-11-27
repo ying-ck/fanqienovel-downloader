@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 import json, time, random, os, platform, shutil
 import concurrent.futures
 
+cpu_count = os.cpu_count()
 
 CODE = [[58344, 58715], [58345, 58716]]
 charset = json.loads(
@@ -222,7 +223,8 @@ def down_book(it, chapter_range=""):
     tasks = []
     # 使用配置的线程数创建线程池
     if 'xc' in config:
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=config['xc'])
+        max_workers = min(cpu_count ,config['xc'])
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
     else:
         executor = concurrent.futures.ThreadPoolExecutor()
     pbar = tqdm(total=len(zj))
@@ -373,7 +375,8 @@ def down_book_epub(it, chapter_range=""):
     tasks = []
     
     if 'xc' in config:
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=config['xc'])
+        max_workers = min(cpu_count, config['xc'])
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
     else:
         executor = concurrent.futures.ThreadPoolExecutor()
     
@@ -510,7 +513,8 @@ def down_book_html(it, chapter_range=""):
     tasks = []
     # 使用配置的线程数创建线程池
     if 'xc' in config:
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=config['xc'])
+        max_workers = min(cpu_count, config['xc'])
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
     else:
         executor = concurrent.futures.ThreadPoolExecutor()
     pbar = tqdm(total=len(zj))
@@ -909,7 +913,8 @@ def down_book_latex(it, chapter_range=""):
     tasks = []
     # 使用配置的线程数创建线程池
     if 'xc' in config:
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=config['xc'])
+        max_workers = min(cpu_count, config['xc'])
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
     else:
         executor = concurrent.futures.ThreadPoolExecutor()
     pbar = tqdm(total=len(zj))

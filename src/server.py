@@ -1,4 +1,7 @@
 from gevent import monkey
+import os
+cpu_count = os.cpu_count()
+
 monkey.patch_all()
 
 from flask import Flask, render_template, jsonify, send_file, request
@@ -116,7 +119,8 @@ class NovelDownloaderWrapper(NovelDownloader):
             novel_content = {}
 
             with tqdm(total=total_chapters, desc='下载进度') as pbar:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
+                max_workers = min(cpu_count, self.config.xc)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     future_to_chapter = {
                         executor.submit(
                             self._download_chapter,
@@ -451,7 +455,8 @@ def download_novel(novel_id):
         retry_count = 0
         while True:
             with tqdm(total=total_chapters, desc='下载进度') as pbar:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=config.xc) as executor:
+                max_workers = min(cpu_count, config.xc)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     future_to_chapter = {
                         executor.submit(
                             downloader._download_chapter,
