@@ -27,7 +27,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            line-height: 1.8;
+            line-height: 1.5;
             color: var(--text-color);
             background-color: var(--bg-color);
             transition: all 0.3s ease;
@@ -56,7 +56,7 @@
         }
 
         .chapter-list {
-            max-height: 600px;
+            max-height: 385px;
             overflow-y: auto;
             background-color: var(--card-bg);
             border-radius: 5px;
@@ -84,6 +84,9 @@
             text-decoration: none;
             color: inherit;
             display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             width: 100%;
             height: 100%;
         }
@@ -614,9 +617,11 @@
     </div>
 
     <script>
+        const chapterListEl = document.getElementById('chapterList');
         let currentNovelId = null;
         let chapters = [];
         let currentChapterIndex = 0;
+
 
         // 显示加载指示器
         function showLoading() {
@@ -690,7 +695,7 @@
                     </div>
                 `).join('');
 
-                document.getElementById('chapterList').innerHTML = chapterListHtml;
+                chapterListEl.innerHTML = chapterListHtml;
 
                 // 加载第一章
                 await loadChapter(0);
@@ -706,6 +711,7 @@
         // 加载章节
         async function loadChapter(index) {
             if (index < 0 || index >= chapters.length) return;
+            chapterListEl.scrollTop = (index - 5) * 35;
 
             showLoading();
             currentChapterIndex = index;
@@ -822,6 +828,8 @@
 
         // 保存阅读进度
         function saveProgress() {
+            console.log(saveProgress);
+            
             if (currentNovelId) {
                 localStorage.setItem(`reading_progress_${currentNovelId}`, JSON.stringify({
                     chapterIndex: currentChapterIndex,
@@ -857,7 +865,7 @@
         }
 
         // 定期保存阅读进度
-        setInterval(saveProgress, 5000);
+        // setInterval(saveProgress, 5000);
 
         // 背景图片功能
         document.addEventListener('DOMContentLoaded', function () {
