@@ -762,12 +762,27 @@ def _sanitize_filename(filename: str) -> str:
         
     return filename
 
-@app.route('/api/read/<novel_id>/<chapter_title>')
-def read_chapter(novel_id, chapter_title):
+def get_capture_content(chapter_id):
+    """get_capture_content"""
+    logger.info(f"Attempting to read chapter: {chapter_id} ")
+    try:
+        content = downloader._download_chapter_content(chapter_id)
+        return content
+    except Exception as e:
+        logger.error(f"Error get_capture_content: {str(e)}")
+
+@app.route('/api/read/<novel_id>/<chapter_id>/<chapter_title>')
+def read_chapter(novel_id, chapter_id, chapter_title):
     """API endpoint to read a specific chapter of a novel"""
     try:
         logger.info(f"Attempting to read chapter: {chapter_title} from novel: {novel_id}")
+
+        content = get_capture_content(chapter_id)
+        if content:
+            return jsonify({ 'title': chapter_title, 'content': content })
         
+        logger.info(f"Can't find content from internet, trying to read from local file")
+     
         # 首先确保小说已下载
         if not os.path.exists(BOOKSTORE_DIR):
             logger.error(f"Bookstore directory not found: {BOOKSTORE_DIR}")

@@ -693,10 +693,12 @@
                 currentNovelId = novelId;
                 console.log('正在加载小说ID:', novelId);
 
-                // 先下载小说
-                const downloadResponse = await fetch(`/api/download/${novelId}`);
-                const downloadData = await downloadResponse.json();
-                console.log('下载响应:', downloadData);
+                // 调用下载小说接口，会自动更新最新内容，不用阻塞代码执行，直接加载章节列表
+                fetch(`/api/download/${novelId}`).then(res => res.json()).then(data => {
+                    console.log('下载响应:', data);
+                }).catch(error => {
+                    console.error('下载失败:', error);
+                });
 
                 // 获取章节列表
                 const chaptersResponse = await fetch(`/api/chapters/${novelId}`);
@@ -751,8 +753,8 @@
             const chapter = chapters[index];
 
             try {
-                console.log('加载章节:', chapter.title);
-                const response = await fetch(`/api/read/${currentNovelId}/${encodeURIComponent(chapter.title)}`);
+                console.log('加载章节:', chapter);
+                const response = await fetch(`/api/read/${currentNovelId}/${chapter.id}/${encodeURIComponent(chapter.title)}`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
