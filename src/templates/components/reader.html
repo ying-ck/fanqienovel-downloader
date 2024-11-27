@@ -471,6 +471,10 @@
             border-radius: 4px;
         }
 
+        .navigation {
+            margin-top: 10px;
+        }
+
         /* 响应式布局调整 */
         @media (max-width: 768px) {
             #settingsPanel {
@@ -647,6 +651,7 @@
         let currentNovelId = null;
         let chapters = [];
         let currentChapterIndex = 0;
+        let hasAlreadyInit = false
 
 
         // 显示加载指示器
@@ -723,8 +728,8 @@
 
                 chapterListEl.innerHTML = chapterListHtml;
 
-                // 加载第一章
-                await loadChapter(0);
+                // 加载历史记录
+                loadProgress()
 
             } catch (error) {
                 console.error('初始化阅读器失败:', error);
@@ -771,7 +776,7 @@
 
                 // 滚动到顶部
                 window.scrollTo(0, 0);
-
+                saveProgress()
             } catch (error) {
                 console.error('加载章节失败:', error);
                 showError(`加载章节失败: ${error.message}`);
@@ -852,9 +857,8 @@
 
         // 保存阅读进度
         function saveProgress() {
-            console.log(saveProgress);
 
-            if (currentNovelId) {
+            if (currentNovelId && hasAlreadyInit) {
                 localStorage.setItem(`reading_progress_${currentNovelId}`, JSON.stringify({
                     chapterIndex: currentChapterIndex,
                     scrollPosition: window.scrollY
@@ -870,7 +874,12 @@
                     const progress = JSON.parse(savedProgress);
                     loadChapter(progress.chapterIndex).then(() => {
                         window.scrollTo(0, progress.scrollPosition);
+                        hasAlreadyInit = true
                     });
+                } else {
+                    loadChapter(0).then(() => {
+                        hasAlreadyInit = true
+                    })
                 }
             }
         }
@@ -889,7 +898,7 @@
         }
 
         // 定期保存阅读进度
-        // setInterval(saveProgress, 5000);
+        setInterval(saveProgress, 5000);
 
         // 背景图片功能
         document.addEventListener('DOMContentLoaded', function () {
