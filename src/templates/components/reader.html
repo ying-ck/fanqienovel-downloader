@@ -617,7 +617,32 @@
     </div>
 
     <script>
-        const chapterListEl = document.getElementById('chapterList');
+        const $id = (id) => document.getElementById(id)
+        // DOM 元素集中定义
+        const chapterListEl = $id('chapterList');
+        const chapterContentEl = $id('chapterContent');
+        const chapterTitleEl = $id('chapterTitle');
+        const loadingIndicatorEl = $id('loadingIndicator');
+        const prevChapterBtn = $id('prevChapter');
+        const nextChapterBtn = $id('nextChapter');
+        const fontSizeInput = $id('fontSize');
+        const fontSizeValueEl = $id('fontSizeValue');
+        const fontFamilySelect = $id('fontFamily');
+        const lineHeightInput = $id('lineHeight');
+        const lineHeightValueEl = $id('lineHeightValue');
+        const themeSwitch = $id('themeSwitch');
+        const progressIndicatorEl = document.querySelector('.progress-indicator');
+        const contentPanel = $id('contentPanel');
+        const settingsPanel = $id('settingsPanel');
+        const container = contentPanel.parentElement;
+        const resizeHandleLeft = $id('resizeHandleLeft');
+        const resizeHandleRight = $id('resizeHandleRight');
+        const bgImageInput = $id('bgImageInput');
+        const bgOpacityInput = $id('bgOpacity');
+        const bgOpacityValueEl = $id('bgOpacityValue');
+        const bgImageEl = $id('bgImage');
+        const removeBgBtn = $id('removeBg');
+
         let currentNovelId = null;
         let chapters = [];
         let currentChapterIndex = 0;
@@ -625,17 +650,17 @@
 
         // 显示加载指示器
         function showLoading() {
-            document.getElementById('loadingIndicator').style.display = 'block';
+            loadingIndicatorEl.style.display = 'block';
         }
 
         // 隐藏加载指示器
         function hideLoading() {
-            document.getElementById('loadingIndicator').style.display = 'none';
+            loadingIndicatorEl.style.display = 'none';
         }
 
         // 显示错误信息
         function showError(message) {
-            document.getElementById('chapterContent').innerHTML = `
+            chapterContentEl.innerHTML = `
                 <div class="alert alert-danger">
                     ${message}
                 </div>`;
@@ -683,7 +708,7 @@
                 }
 
                 chapters = data.chapters;
-                document.getElementById('chapterTitle').innerText = `${data.name} - ${chapters[0].title}`;
+                chapterTitleEl.innerText = `${data.name} - ${chapters[0].title}`;
 
                 // 生成章节列表HTML
                 const chapterListHtml = chapters.map((chapter, index) => `
@@ -731,12 +756,12 @@
                     throw new Error(data.error);
                 }
 
-                document.getElementById('chapterTitle').innerText = data.title;
-                document.getElementById('chapterContent').innerHTML = data.content.replace(/\n/g, '<br>');
+                chapterTitleEl.innerText = data.title;
+                chapterContentEl.innerHTML = data.content.replace(/\n/g, '<br>');
 
                 // 更新导航按钮
-                document.getElementById('prevChapter').style.display = index > 0 ? 'inline-block' : 'none';
-                document.getElementById('nextChapter').style.display = index < chapters.length - 1 ? 'inline-block' : 'none';
+                prevChapterBtn.style.display = index > 0 ? 'inline-block' : 'none';
+                nextChapterBtn.style.display = index < chapters.length - 1 ? 'inline-block' : 'none';
 
                 // 高亮当前章节
                 document.querySelectorAll('.chapter-item').forEach((item, i) => {
@@ -755,27 +780,25 @@
         }
 
         // 设置字体大小
-        document.getElementById('fontSize').addEventListener('input', function (e) {
+        fontSizeInput.addEventListener('input', function (e) {
             const size = e.target.value;
-            document.getElementById('fontSizeValue').textContent = `${size}px`;
-            document.getElementById('chapterContent').style.fontSize = `${size}px`;
+            fontSizeValueEl.textContent = `${size}px`;
+            chapterContentEl.style.fontSize = `${size}px`;
         });
 
         // 导航按钮事件
-        document.getElementById('prevChapter').addEventListener('click', () => {
+        prevChapterBtn.addEventListener('click', () => {
             loadChapter(currentChapterIndex - 1);
         });
 
-        document.getElementById('nextChapter').addEventListener('click', () => {
+        nextChapterBtn.addEventListener('click', () => {
             loadChapter(currentChapterIndex + 1);
         });
 
         // 初始化阅读器
         initializeReader();
 
-        // 添加主题切换功能
-        const themeSwitch = document.getElementById('themeSwitch');
-
+        // 添加主题切换功能 
         // 检查本地存储中的主题设置
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
@@ -820,16 +843,16 @@
         // 添加键盘快捷键
         document.addEventListener('keydown', function (e) {
             if (e.key === 'ArrowLeft') {
-                document.getElementById('prevChapter').click();
+                prevChapterBtn.click();
             } else if (e.key === 'ArrowRight') {
-                document.getElementById('nextChapter').click();
+                nextChapterBtn.click();
             }
         });
 
         // 保存阅读进度
         function saveProgress() {
             console.log(saveProgress);
-            
+
             if (currentNovelId) {
                 localStorage.setItem(`reading_progress_${currentNovelId}`, JSON.stringify({
                     chapterIndex: currentChapterIndex,
@@ -852,16 +875,16 @@
         }
 
         // 字体设置
-        document.getElementById('fontFamily').addEventListener('change', function () {
-            document.getElementById('chapterContent').style.fontFamily = this.value;
+        fontFamilySelect.addEventListener('change', function () {
+            chapterContentEl.style.fontFamily = this.value;
             localStorage.setItem('reader_fontFamily', this.value);
         });
 
         // 加载保存的设置
         const savedFontFamily = localStorage.getItem('reader_fontFamily');
         if (savedFontFamily) {
-            document.getElementById('fontFamily').value = savedFontFamily;
-            document.getElementById('chapterContent').style.fontFamily = savedFontFamily;
+            fontFamilySelect.value = savedFontFamily;
+            chapterContentEl.style.fontFamily = savedFontFamily;
         }
 
         // 定期保存阅读进度
@@ -869,15 +892,10 @@
 
         // 背景图片功能
         document.addEventListener('DOMContentLoaded', function () {
-            const bgImageInput = document.getElementById('bgImageInput');
-            const bgOpacity = document.getElementById('bgOpacity');
-            const bgOpacityValue = document.getElementById('bgOpacityValue');
-            const bgImage = document.getElementById('bgImage');
-            const removeBg = document.getElementById('removeBg');
 
             // 设置默认透明度为0.8
-            bgOpacity.value = 0.8;
-            bgOpacityValue.textContent = '0.8';
+            bgOpacityInput.value = 0.8;
+            bgOpacityValueEl.textContent = '0.8';
 
             // 加载保存的背景图片
             const savedBgImage = localStorage.getItem('reader_bgImage');
@@ -886,8 +904,8 @@
             if (savedBgImage) {
                 bgImage.src = savedBgImage;
                 bgImage.style.opacity = savedBgOpacity;
-                bgOpacity.value = savedBgOpacity;
-                bgOpacityValue.textContent = savedBgOpacity;
+                bgOpacityInput.value = savedBgOpacity;
+                bgOpacityValueEl.textContent = savedBgOpacity;
             }
 
             // 处理图片上传
@@ -904,10 +922,10 @@
             });
 
             // 处理透明度调整
-            bgOpacity.addEventListener('input', function () {
+            bgOpacityInput.addEventListener('input', function () {
                 const opacity = this.value;
                 bgImage.style.opacity = opacity;
-                bgOpacityValue.textContent = opacity;
+                bgOpacityValueEl.textContent = opacity;
                 localStorage.setItem('reader_bgOpacity', opacity);
             });
 
@@ -915,8 +933,8 @@
             removeBg.addEventListener('click', function () {
                 bgImage.src = '';
                 bgImage.style.opacity = 0.1;
-                bgOpacity.value = 0.1;
-                bgOpacityValue.textContent = '0.1';
+                bgOpacityInput.value = 0.1;
+                bgOpacityValueEl.textContent = '0.1';
                 localStorage.removeItem('reader_bgImage');
                 localStorage.removeItem('reader_bgOpacity');
                 bgImageInput.value = ''; // 清空文件输入
@@ -930,7 +948,7 @@
         lineHeight.addEventListener('input', function () {
             const value = this.value;
             lineHeightValue.textContent = value;
-            document.getElementById('chapterContent').style.lineHeight = value;
+            chapterContentEl.style.lineHeight = value;
             localStorage.setItem('reader_lineHeight', value);
 
             // 更新滑动轨道的背景
@@ -938,13 +956,12 @@
         });
 
         // 添加字大小控制的值显示和滑动轨道背景
-        const fontSize = document.getElementById('fontSize');
-        const fontSizeValue = document.getElementById('fontSizeValue');
+        const fontSizeValue = fontSizeValueEl;
 
-        fontSize.addEventListener('input', function () {
+        fontSizeInput.addEventListener('input', function () {
             const value = this.value;
             fontSizeValue.textContent = `${value}px`;
-            document.getElementById('chapterContent').style.fontSize = `${value}px`;
+            chapterContentEl.style.fontSize = `${value}px`;
             localStorage.setItem('reader_fontSize', value);
 
             // 更新滑动轨道的背景
@@ -972,17 +989,17 @@
             if (savedLineHeight) {
                 lineHeight.value = savedLineHeight;
                 lineHeightValue.textContent = savedLineHeight;
-                document.getElementById('chapterContent').style.lineHeight = savedLineHeight;
+                chapterContentEl.style.lineHeight = savedLineHeight;
                 updateRangeBackground(lineHeight);
             }
 
             // 加载字体大小设置
             const savedFontSize = localStorage.getItem('reader_fontSize');
             if (savedFontSize) {
-                fontSize.value = savedFontSize;
+                fontSizeInput.value = savedFontSize;
                 fontSizeValue.textContent = `${savedFontSize}px`;
-                document.getElementById('chapterContent').style.fontSize = `${savedFontSize}px`;
-                updateRangeBackground(fontSize);
+                chapterContentEl.style.fontSize = `${savedFontSize}px`;
+                updateRangeBackground(fontSizeInput);
             }
 
             // 初始化所有范围输入控件的背景
@@ -993,8 +1010,6 @@
 
         // 修改拖动功能
         document.addEventListener('DOMContentLoaded', function () {
-            const contentPanel = document.getElementById('contentPanel');
-            const settingsPanel = document.getElementById('settingsPanel');
             const container = contentPanel.parentElement;
             let isResizing = false;
             let currentHandle = null;
@@ -1063,11 +1078,11 @@
             if (savedLeft) contentPanel.style.transform = savedLeft;
 
             // 添加事件监听
-            document.getElementById('resizeHandleLeft').addEventListener('mousedown', e => {
+            resizeHandleLeft.addEventListener('mousedown', e => {
                 startResize(e, 'left');
             });
 
-            document.getElementById('resizeHandleRight').addEventListener('mousedown', e => {
+            resizeHandleRight.addEventListener('mousedown', e => {
                 startResize(e, 'right');
             });
 
@@ -1082,8 +1097,8 @@
                 localStorage.removeItem('reader_content_left');
             }
 
-            document.getElementById('resizeHandleLeft').addEventListener('dblclick', resetLayout);
-            document.getElementById('resizeHandleRight').addEventListener('dblclick', resetLayout);
+            resizeHandleLeft.addEventListener('dblclick', resetLayout);
+            resizeHandleRight.addEventListener('dblclick', resetLayout);
 
             // 窗口大小改变时调整
             window.addEventListener('resize', function () {
