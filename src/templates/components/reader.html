@@ -544,7 +544,7 @@
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <button class="btn btn-outline-dark" onclick="window.location.href='/'">
+                            <button class="btn btn-outline-secondary" onclick="window.location.href='/'">
                                 <i class="bi bi-arrow-left"></i> 返回主页
                             </button>
                         </div>
@@ -555,22 +555,23 @@
                             <input type="range" class="form-range custom-range" id="fontSize" min="12" max="32"
                                 value="16">
                         </div>
-                        <div class="mb-3">
-                            <label for="fontFamily" class="form-label">字体</label>
-                            <select class="form-select" id="fontFamily">
+                        <div class="mb-3 d-flex align-items-center">
+                            <label for="fontFamily" class="me-3">字体</label>
+                            <select class="form-select col" id="fontFamily">
                                 <option value="system-ui">系统默认</option>
                                 <option value="Microsoft YaHei">微软雅黑</option>
                                 <option value="SimSun">宋体</option>
                                 <option value="KaiTi">楷体</option>
                             </select>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">暗色模式</label>
+                        <div class="mb-3 d-flex align-items-center">
+                            <label class="me-3">暗色模式</label>
                             <label class="theme-switch">
                                 <input type="checkbox" id="themeSwitch">
                                 <span class="slider"></span>
                             </label>
                         </div>
+                        
                         <div class="mb-3">
                             <label class="form-label">背景图片</label>
                             <input type="file" class="form-control mb-2" id="bgImageInput" accept="image/*">
