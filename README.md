@@ -98,6 +98,9 @@ Web版实现的功能
 
 下载的小说和个人数据 (`data` 文件夹) 会存在docker 卷里面，分别叫做 `fanqie_data` 和 `fanqie_downloads`。如果你想修改成某个特定的目录，可以修改 `docker-compose.yaml` 文件中的持久化用户数据部分。
 
+### 手机版
+
+
 ## 集思广益
 
 若各位使用者有什么意见或程序有什么错误，欢迎在lssues中讨论
