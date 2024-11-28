@@ -104,13 +104,13 @@ Web版实现的功能
 安装termux
 
 换源：
-1.sed -i 's@^ $deb.*stable main$ $@#\1\ndeb https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main stable main@' $PREFIX/etc/apt/sources.list
-2.apt update && apt upgrade
+` sed -i 's@^ $deb.*stable main$ $@#\1\ndeb https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main stable main@' $PREFIX/etc/apt/sources.list`
+`apt update && apt upgrade`
 
-3.pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+`pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple`
 
 安装包：
-pip install requests lxml ebooklib tqdm beautifulsoup4(注意：在ref_main.py中删掉tkinter的导入)
+`pip install requests lxml ebooklib tqdm beautifulsoup4`(注意：在ref_main.py中删掉tkinter的导入)
 
 运行：
 python ref_main.py
