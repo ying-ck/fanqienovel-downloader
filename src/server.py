@@ -1,4 +1,7 @@
 from gevent import monkey
+import os
+cpu_count = os.cpu_count()
+
 monkey.patch_all()
 
 from flask import Flask, render_template, jsonify, send_file, request
@@ -116,7 +119,8 @@ class NovelDownloaderWrapper(NovelDownloader):
             novel_content = {}
 
             with tqdm(total=total_chapters, desc='下载进度') as pbar:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
+                max_workers = min(cpu_count, self.config.xc)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     future_to_chapter = {
                         executor.submit(
                             self._download_chapter,
@@ -451,7 +455,8 @@ def download_novel(novel_id):
         retry_count = 0
         while True:
             with tqdm(total=total_chapters, desc='下载进度') as pbar:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=config.xc) as executor:
+                max_workers = min(cpu_count, config.xc)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     future_to_chapter = {
                         executor.submit(
                             downloader._download_chapter,
@@ -762,12 +767,27 @@ def _sanitize_filename(filename: str) -> str:
         
     return filename
 
-@app.route('/api/read/<novel_id>/<chapter_title>')
-def read_chapter(novel_id, chapter_title):
+def get_capture_content(chapter_id):
+    """get_capture_content"""
+    logger.info(f"Attempting to read chapter: {chapter_id} ")
+    try:
+        content = downloader._download_chapter_content(chapter_id)
+        return content
+    except Exception as e:
+        logger.error(f"Error get_capture_content: {str(e)}")
+
+@app.route('/api/read/<novel_id>/<chapter_id>/<chapter_title>')
+def read_chapter(novel_id, chapter_id, chapter_title):
     """API endpoint to read a specific chapter of a novel"""
     try:
         logger.info(f"Attempting to read chapter: {chapter_title} from novel: {novel_id}")
+
+        content = get_capture_content(chapter_id)
+        if content:
+            return jsonify({ 'title': chapter_title, 'content': content })
         
+        logger.info(f"Can't find content from internet, trying to read from local file")
+     
         # 首先确保小说已下载
         if not os.path.exists(BOOKSTORE_DIR):
             logger.error(f"Bookstore directory not found: {BOOKSTORE_DIR}")

@@ -15,6 +15,7 @@ from typing import Callable, Optional, Dict, List, Union
 from dataclasses import dataclass
 from enum import Enum
 
+cpu_count = os.cpu_count()
 
 class SaveMode(Enum):
     SINGLE_TXT = 1
@@ -123,7 +124,7 @@ class NovelDownloader:
         self._pbar.update(1)  # Update by 1 instead of setting n directly
 
         # For web: Return progress info
-        return DownloadProgress(
+        return self.DownloadProgress(
             current=current,
             total=total,
             percentage=(current / total * 100) if total > 0 else 0,
@@ -151,7 +152,8 @@ class NovelDownloader:
 
             # 下载章节
             with tqdm(total=total_chapters, desc='下载进度') as pbar:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
+                max_workers = min(cpu_count, self.config.xc)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     future_to_chapter = {
                         executor.submit(
                             self._download_chapter,
@@ -303,7 +305,8 @@ class NovelDownloader:
             with tqdm(total=total_chapters, desc='下载进度') as pbar:
                 # Download chapters
                 content = existing_content.copy()  # Start with existing content including metadata
-                with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
+                max_workers = min(cpu_count, self.config.xc)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     future_to_chapter = {
                         executor.submit(
                             self._download_chapter,
@@ -381,7 +384,8 @@ class NovelDownloader:
             # Download chapters with progress tracking
             epub_chapters = []
             with tqdm(total=total_chapters, desc='下载进度') as pbar:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
+                max_workers = min(cpu_count, self.config.xc)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     future_to_chapter = {
                         executor.submit(
                             self._download_chapter_for_epub,
@@ -574,7 +578,8 @@ class NovelDownloader:
 
             # Download chapters with progress tracking
             with tqdm(total=total_chapters, desc='下载进度') as pbar:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
+                max_workers = min(cpu_count, self.config.xc)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     future_to_chapter = {
                         executor.submit(
                             self._download_chapter_for_html,
@@ -628,7 +633,8 @@ class NovelDownloader:
 
             # Download chapters with progress tracking
             with tqdm(total=total_chapters, desc='下载进度') as pbar:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
+                max_workers = min(cpu_count, self.config.xc)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     future_to_chapter = {
                         executor.submit(
                             self._download_chapter_for_latex,

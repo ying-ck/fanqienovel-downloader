@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -26,7 +27,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            line-height: 1.8;
+            line-height: 1.5;
             color: var(--text-color);
             background-color: var(--bg-color);
             transition: all 0.3s ease;
@@ -55,7 +56,7 @@
         }
 
         .chapter-list {
-            max-height: 600px;
+            max-height: 385px;
             overflow-y: auto;
             background-color: var(--card-bg);
             border-radius: 5px;
@@ -83,6 +84,9 @@
             text-decoration: none;
             color: inherit;
             display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             width: 100%;
             height: 100%;
         }
@@ -143,11 +147,11 @@
             border-radius: 50%;
         }
 
-        input:checked + .slider {
+        input:checked+.slider {
             background-color: #2196F3;
         }
 
-        input:checked + .slider:before {
+        input:checked+.slider:before {
             transform: translateX(26px);
         }
 
@@ -308,9 +312,10 @@
             background: #007bff;
             cursor: pointer;
             border: 2px solid #fff;
-            box-shadow: 0 0 2px rgba(0,0,0,0.2);
+            box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
             transition: all 0.2s ease;
-            margin-top: -4px; /* 调整球的垂直位置 */
+            margin-top: -4px;
+            /* 调整球的垂直位置 */
         }
 
         .custom-range::-moz-range-thumb {
@@ -320,7 +325,7 @@
             background: #007bff;
             cursor: pointer;
             border: 2px solid #fff;
-            box-shadow: 0 0 2px rgba(0,0,0,0.2);
+            box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
             transition: all 0.2s ease;
         }
 
@@ -376,7 +381,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0;  /* 隐藏手柄 */
+            opacity: 0;
+            /* 隐藏手柄 */
             z-index: 100;
         }
 
@@ -390,7 +396,8 @@
 
         /* 移除悬停效果 */
         .resize-handle:hover {
-            opacity: 0;  /* 保持隐藏 */
+            opacity: 0;
+            /* 保持隐藏 */
         }
 
         /* 移除拖动时的样式 */
@@ -416,6 +423,7 @@
         #contentPanel {
             min-width: 300px;
             max-width: 85%;
+            width: calc(100% - 320px);
         }
 
         #settingsPanel {
@@ -439,7 +447,8 @@
 
         /* 调整内容区域以适应固定的设置面板 */
         #contentPanel {
-            margin-right: 320px; /* 设置面板宽度 + 间距 */
+            margin-right: 320px;
+            /* 设置面板宽度 + 间距 */
             transition: all 0.3s ease;
         }
 
@@ -463,6 +472,10 @@
             border-radius: 4px;
         }
 
+        .navigation {
+            margin-top: 10px;
+        }
+
         /* 响应式布局调整 */
         @media (max-width: 768px) {
             #settingsPanel {
@@ -471,13 +484,16 @@
                 position: static;
                 padding: 10px;
             }
-            
+
             #contentPanel {
                 margin-right: 0;
+                max-width: 100%;
+                width: auto;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="reader-container">
         <!-- 添加阅读进度指示器 -->
@@ -487,7 +503,7 @@
         <div id="loadingIndicator" class="alert alert-info" style="display: none;">
             正在加载小说内容...
         </div>
-        
+
         <div class="row position-relative">
             <!-- 阅读区域 -->
             <div id="contentPanel">
@@ -506,7 +522,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- 右侧设置面板 -->
             <div id="settingsPanel">
                 <!-- 目录卡片 -->
@@ -520,7 +536,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- 设置卡片 -->
                 <div class="card">
                     <div class="card-header">
@@ -528,7 +544,7 @@
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <button class="btn btn-outline-dark" onclick="window.location.href='/'">
+                            <button class="btn btn-outline-secondary" onclick="window.location.href='/'">
                                 <i class="bi bi-arrow-left"></i> 返回主页
                             </button>
                         </div>
@@ -536,33 +552,33 @@
                             <label for="fontSize" class="form-label d-flex justify-content-between">
                                 字体大小 <span id="fontSizeValue">16px</span>
                             </label>
-                            <input type="range" class="form-range custom-range" id="fontSize" 
-                                   min="12" max="32" value="16">
+                            <input type="range" class="form-range custom-range" id="fontSize" min="12" max="32"
+                                value="16">
                         </div>
-                        <div class="mb-3">
-                            <label for="fontFamily" class="form-label">字体</label>
-                            <select class="form-select" id="fontFamily">
+                        <div class="mb-3 d-flex align-items-center">
+                            <label for="fontFamily" class="me-3">字体</label>
+                            <select class="form-select col" id="fontFamily">
                                 <option value="system-ui">系统默认</option>
                                 <option value="Microsoft YaHei">微软雅黑</option>
                                 <option value="SimSun">宋体</option>
                                 <option value="KaiTi">楷体</option>
                             </select>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">暗色模式</label>
+                        <div class="mb-3 d-flex align-items-center">
+                            <label class="me-3">暗色模式</label>
                             <label class="theme-switch">
                                 <input type="checkbox" id="themeSwitch">
                                 <span class="slider"></span>
                             </label>
                         </div>
+                        
                         <div class="mb-3">
                             <label class="form-label">背景图片</label>
                             <input type="file" class="form-control mb-2" id="bgImageInput" accept="image/*">
                             <div class="input-group">
                                 <label class="input-group-text" for="bgOpacity">透明度</label>
-                                <input type="range" class="form-range" id="bgOpacity" 
-                                       min="0" max="1" step="0.1" value="0.1" 
-                                       style="flex: 1; padding: 0 10px;">
+                                <input type="range" class="form-range" id="bgOpacity" min="0" max="1" step="0.1"
+                                    value="0.1" style="flex: 1; padding: 0 10px;">
                                 <span class="input-group-text" id="bgOpacityValue">0.1</span>
                             </div>
                             <button class="btn btn-outline-danger btn-sm mt-2" id="removeBg">
@@ -573,8 +589,8 @@
                             <label for="lineHeight" class="form-label d-flex justify-content-between">
                                 行间距 <span id="lineHeightValue">1.8</span>
                             </label>
-                            <input type="range" class="form-range custom-range" id="lineHeight" 
-                                   min="1" max="3" step="0.1" value="1.8">
+                            <input type="range" class="form-range custom-range" id="lineHeight" min="1" max="3"
+                                step="0.1" value="1.8">
                         </div>
                     </div>
                 </div>
@@ -609,23 +625,51 @@
     </div>
 
     <script>
+        const $id = (id) => document.getElementById(id)
+        // DOM 元素集中定义
+        const chapterListEl = $id('chapterList');
+        const chapterContentEl = $id('chapterContent');
+        const chapterTitleEl = $id('chapterTitle');
+        const loadingIndicatorEl = $id('loadingIndicator');
+        const prevChapterBtn = $id('prevChapter');
+        const nextChapterBtn = $id('nextChapter');
+        const fontSizeInput = $id('fontSize');
+        const fontSizeValueEl = $id('fontSizeValue');
+        const fontFamilySelect = $id('fontFamily');
+        const lineHeightInput = $id('lineHeight');
+        const lineHeightValueEl = $id('lineHeightValue');
+        const themeSwitch = $id('themeSwitch');
+        const progressIndicatorEl = document.querySelector('.progress-indicator');
+        const contentPanel = $id('contentPanel');
+        const settingsPanel = $id('settingsPanel');
+        const container = contentPanel.parentElement;
+        const resizeHandleLeft = $id('resizeHandleLeft');
+        const resizeHandleRight = $id('resizeHandleRight');
+        const bgImageInput = $id('bgImageInput');
+        const bgOpacityInput = $id('bgOpacity');
+        const bgOpacityValueEl = $id('bgOpacityValue');
+        const bgImageEl = $id('bgImage');
+        const removeBgBtn = $id('removeBg');
+
         let currentNovelId = null;
         let chapters = [];
         let currentChapterIndex = 0;
+        let hasAlreadyInit = false
+
 
         // 显示加载指示器
         function showLoading() {
-            document.getElementById('loadingIndicator').style.display = 'block';
+            loadingIndicatorEl.style.display = 'block';
         }
 
         // 隐藏加载指示器
         function hideLoading() {
-            document.getElementById('loadingIndicator').style.display = 'none';
+            loadingIndicatorEl.style.display = 'none';
         }
 
         // 显示错误信息
         function showError(message) {
-            document.getElementById('chapterContent').innerHTML = `
+            chapterContentEl.innerHTML = `
                 <div class="alert alert-danger">
                     ${message}
                 </div>`;
@@ -638,7 +682,7 @@
                 // 从URL获取小说ID
                 const urlParams = new URLSearchParams(window.location.search);
                 let novelId = urlParams.get('novel_id');
-                
+
                 if (!novelId) {
                     novelId = prompt('请输入小说ID:');
                     if (!novelId) {
@@ -646,35 +690,37 @@
                         return;
                     }
                 }
-                
+
                 currentNovelId = novelId;
                 console.log('正在加载小说ID:', novelId);
-                
-                // 先下载小说
-                const downloadResponse = await fetch(`/api/download/${novelId}`);
-                const downloadData = await downloadResponse.json();
-                console.log('下载响应:', downloadData);
-                
+
+                // 调用下载小说接口，会自动更新最新内容，不用阻塞代码执行，直接加载章节列表
+                fetch(`/api/download/${novelId}`).then(res => res.json()).then(data => {
+                    console.log('下载响应:', data);
+                }).catch(error => {
+                    console.error('下载失败:', error);
+                });
+
                 // 获取章节列表
                 const chaptersResponse = await fetch(`/api/chapters/${novelId}`);
                 if (!chaptersResponse.ok) {
                     throw new Error(`获取章节列表失败: ${chaptersResponse.statusText}`);
                 }
-                
+
                 const data = await chaptersResponse.json();
                 console.log('章节列表数据:', data);
-                
+
                 if (data.error) {
                     throw new Error(data.error);
                 }
-                
+
                 if (!data.chapters || data.chapters.length === 0) {
                     throw new Error('没有找到章节列表');
                 }
-                
+
                 chapters = data.chapters;
-                document.getElementById('chapterTitle').innerText = `${data.name} - ${chapters[0].title}`;
-                
+                chapterTitleEl.innerText = `${data.name} - ${chapters[0].title}`;
+
                 // 生成章节列表HTML
                 const chapterListHtml = chapters.map((chapter, index) => `
                     <div class="chapter-item ${index === currentChapterIndex ? 'active' : ''}" 
@@ -684,12 +730,12 @@
                         </a>
                     </div>
                 `).join('');
-                
-                document.getElementById('chapterList').innerHTML = chapterListHtml;
-                
-                // 加载第一章
-                await loadChapter(0);
-                
+
+                chapterListEl.innerHTML = chapterListHtml;
+
+                // 加载历史记录
+                loadProgress()
+
             } catch (error) {
                 console.error('初始化阅读器失败:', error);
                 showError(`初始化阅读器失败: ${error.message}`);
@@ -701,40 +747,41 @@
         // 加载章节
         async function loadChapter(index) {
             if (index < 0 || index >= chapters.length) return;
-            
+            chapterListEl.scrollTop = (index - 5) * 35;
+
             showLoading();
             currentChapterIndex = index;
             const chapter = chapters[index];
-            
+
             try {
-                console.log('加载章节:', chapter.title);
-                const response = await fetch(`/api/read/${currentNovelId}/${encodeURIComponent(chapter.title)}`);
+                console.log('加载章节:', chapter);
+                const response = await fetch(`/api/read/${currentNovelId}/${chapter.id}/${encodeURIComponent(chapter.title)}`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
                 console.log('章节内容数据:', data);
-                
+
                 if (data.error) {
                     throw new Error(data.error);
                 }
-                
-                document.getElementById('chapterTitle').innerText = data.title;
-                document.getElementById('chapterContent').innerHTML = data.content.replace(/\n/g, '<br>');
-                
+
+                chapterTitleEl.innerText = data.title;
+                chapterContentEl.innerHTML = data.content.replace(/\n/g, '<br>');
+
                 // 更新导航按钮
-                document.getElementById('prevChapter').style.display = index > 0 ? 'inline-block' : 'none';
-                document.getElementById('nextChapter').style.display = index < chapters.length - 1 ? 'inline-block' : 'none';
-                
+                prevChapterBtn.style.display = index > 0 ? 'inline-block' : 'none';
+                nextChapterBtn.style.display = index < chapters.length - 1 ? 'inline-block' : 'none';
+
                 // 高亮当前章节
                 document.querySelectorAll('.chapter-item').forEach((item, i) => {
                     item.classList.toggle('active', i === index);
                 });
-                
+
                 // 滚动到顶部
                 window.scrollTo(0, 0);
-                
+                saveProgress()
             } catch (error) {
                 console.error('加载章节失败:', error);
                 showError(`加载章节失败: ${error.message}`);
@@ -744,27 +791,25 @@
         }
 
         // 设置字体大小
-        document.getElementById('fontSize').addEventListener('input', function(e) {
+        fontSizeInput.addEventListener('input', function (e) {
             const size = e.target.value;
-            document.getElementById('fontSizeValue').textContent = `${size}px`;
-            document.getElementById('chapterContent').style.fontSize = `${size}px`;
+            fontSizeValueEl.textContent = `${size}px`;
+            chapterContentEl.style.fontSize = `${size}px`;
         });
 
         // 导航按钮事件
-        document.getElementById('prevChapter').addEventListener('click', () => {
+        prevChapterBtn.addEventListener('click', () => {
             loadChapter(currentChapterIndex - 1);
         });
 
-        document.getElementById('nextChapter').addEventListener('click', () => {
+        nextChapterBtn.addEventListener('click', () => {
             loadChapter(currentChapterIndex + 1);
         });
 
         // 初始化阅读器
         initializeReader();
 
-        // 添加主题切换功能
-        const themeSwitch = document.getElementById('themeSwitch');
-        
+        // 添加主题切换功能 
         // 检查本地存储中的主题设置
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
@@ -773,7 +818,7 @@
         }
 
         // 监听主题切换
-        themeSwitch.addEventListener('change', function() {
+        themeSwitch.addEventListener('change', function () {
             if (this.checked) {
                 document.documentElement.setAttribute('data-theme', 'dark');
                 localStorage.setItem('theme', 'dark');
@@ -798,7 +843,7 @@
 
         // 添加阅读进度指示器
         const progressIndicator = document.querySelector('.progress-indicator');
-        window.addEventListener('scroll', function() {
+        window.addEventListener('scroll', function () {
             const windowHeight = window.innerHeight;
             const documentHeight = document.documentElement.scrollHeight - windowHeight;
             const scrolled = window.scrollY;
@@ -807,17 +852,18 @@
         });
 
         // 添加键盘快捷键
-        document.addEventListener('keydown', function(e) {
+        document.addEventListener('keydown', function (e) {
             if (e.key === 'ArrowLeft') {
-                document.getElementById('prevChapter').click();
+                prevChapterBtn.click();
             } else if (e.key === 'ArrowRight') {
-                document.getElementById('nextChapter').click();
+                nextChapterBtn.click();
             }
         });
 
         // 保存阅读进度
         function saveProgress() {
-            if (currentNovelId) {
+
+            if (currentNovelId && hasAlreadyInit) {
                 localStorage.setItem(`reading_progress_${currentNovelId}`, JSON.stringify({
                     chapterIndex: currentChapterIndex,
                     scrollPosition: window.scrollY
@@ -833,77 +879,77 @@
                     const progress = JSON.parse(savedProgress);
                     loadChapter(progress.chapterIndex).then(() => {
                         window.scrollTo(0, progress.scrollPosition);
+                        hasAlreadyInit = true
                     });
+                } else {
+                    loadChapter(0).then(() => {
+                        hasAlreadyInit = true
+                    })
                 }
             }
         }
 
         // 字体设置
-        document.getElementById('fontFamily').addEventListener('change', function() {
-            document.getElementById('chapterContent').style.fontFamily = this.value;
+        fontFamilySelect.addEventListener('change', function () {
+            chapterContentEl.style.fontFamily = this.value;
             localStorage.setItem('reader_fontFamily', this.value);
         });
 
         // 加载保存的设置
         const savedFontFamily = localStorage.getItem('reader_fontFamily');
         if (savedFontFamily) {
-            document.getElementById('fontFamily').value = savedFontFamily;
-            document.getElementById('chapterContent').style.fontFamily = savedFontFamily;
+            fontFamilySelect.value = savedFontFamily;
+            chapterContentEl.style.fontFamily = savedFontFamily;
         }
 
         // 定期保存阅读进度
         setInterval(saveProgress, 5000);
 
         // 背景图片功能
-        document.addEventListener('DOMContentLoaded', function() {
-            const bgImageInput = document.getElementById('bgImageInput');
-            const bgOpacity = document.getElementById('bgOpacity');
-            const bgOpacityValue = document.getElementById('bgOpacityValue');
-            const bgImage = document.getElementById('bgImage');
-            const removeBg = document.getElementById('removeBg');
-            
+        document.addEventListener('DOMContentLoaded', function () {
+
             // 设置默认透明度为0.8
-            bgOpacity.value = 0.8;
-            bgOpacityValue.textContent = '0.8';
-            
+            bgOpacityInput.value = 0.8;
+            bgOpacityValueEl.textContent = '0.8';
+
             // 加载保存的背景图片
             const savedBgImage = localStorage.getItem('reader_bgImage');
             const savedBgOpacity = localStorage.getItem('reader_bgOpacity') || '0.8';
-            
+
             if (savedBgImage) {
                 bgImage.src = savedBgImage;
                 bgImage.style.opacity = savedBgOpacity;
-                bgOpacity.value = savedBgOpacity;
-                bgOpacityValue.textContent = savedBgOpacity;
+                bgOpacityInput.value = savedBgOpacity;
+                bgOpacityValueEl.textContent = savedBgOpacity;
             }
-            
+
             // 处理图片上传
-            bgImageInput.addEventListener('change', function(e) {
+            bgImageInput.addEventListener('change', function (e) {
                 const file = e.target.files[0];
                 if (file) {
                     const reader = new FileReader();
-                    reader.onload = function(e) {
+                    reader.onload = function (e) {
                         bgImage.src = e.target.result;
                         localStorage.setItem('reader_bgImage', e.target.result);
                     };
                     reader.readAsDataURL(file);
                 }
             });
-            
+
             // 处理透明度调整
-            bgOpacity.addEventListener('input', function() {
+            bgOpacityInput.addEventListener('input', function () {
                 const opacity = this.value;
                 bgImage.style.opacity = opacity;
-                bgOpacityValue.textContent = opacity;
+                bgOpacityValueEl.textContent = opacity;
                 localStorage.setItem('reader_bgOpacity', opacity);
             });
-            
+
             // 移除背景
-            removeBg.addEventListener('click', function() {
+            removeBg.addEventListener('click', function () {
                 bgImage.src = '';
                 bgImage.style.opacity = 0.1;
-                bgOpacity.value = 0.1;
-                bgOpacityValue.textContent = '0.1';
+                bgOpacityInput.value = 0.1;
+                bgOpacityValueEl.textContent = '0.1';
                 localStorage.removeItem('reader_bgImage');
                 localStorage.removeItem('reader_bgOpacity');
                 bgImageInput.value = ''; // 清空文件输入
@@ -914,26 +960,25 @@
         const lineHeight = document.getElementById('lineHeight');
         const lineHeightValue = document.getElementById('lineHeightValue');
 
-        lineHeight.addEventListener('input', function() {
+        lineHeight.addEventListener('input', function () {
             const value = this.value;
             lineHeightValue.textContent = value;
-            document.getElementById('chapterContent').style.lineHeight = value;
+            chapterContentEl.style.lineHeight = value;
             localStorage.setItem('reader_lineHeight', value);
-            
+
             // 更新滑动轨道的背景
             updateRangeBackground(this);
         });
 
         // 添加字大小控制的值显示和滑动轨道背景
-        const fontSize = document.getElementById('fontSize');
-        const fontSizeValue = document.getElementById('fontSizeValue');
+        const fontSizeValue = fontSizeValueEl;
 
-        fontSize.addEventListener('input', function() {
+        fontSizeInput.addEventListener('input', function () {
             const value = this.value;
             fontSizeValue.textContent = `${value}px`;
-            document.getElementById('chapterContent').style.fontSize = `${value}px`;
+            chapterContentEl.style.fontSize = `${value}px`;
             localStorage.setItem('reader_fontSize', value);
-            
+
             // 更新滑动轨道的背景
             updateRangeBackground(this);
         });
@@ -944,34 +989,34 @@
             const max = parseFloat(element.max) || 100;
             const value = parseFloat(element.value);
             const percentage = ((value - min) / (max - min)) * 100;
-            
+
             // 设置自定义属性
             element.style.setProperty('--range-progress', percentage + '%');
-            
+
             // 更新轨道背景
             element.style.background = `linear-gradient(to right, #007bff 0%, #007bff ${percentage}%, #e9ecef ${percentage}%, #e9ecef 100%)`;
         }
 
         // 加载保存的设置
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // 加载行间距设置
             const savedLineHeight = localStorage.getItem('reader_lineHeight');
             if (savedLineHeight) {
                 lineHeight.value = savedLineHeight;
                 lineHeightValue.textContent = savedLineHeight;
-                document.getElementById('chapterContent').style.lineHeight = savedLineHeight;
+                chapterContentEl.style.lineHeight = savedLineHeight;
                 updateRangeBackground(lineHeight);
             }
-            
+
             // 加载字体大小设置
             const savedFontSize = localStorage.getItem('reader_fontSize');
             if (savedFontSize) {
-                fontSize.value = savedFontSize;
+                fontSizeInput.value = savedFontSize;
                 fontSizeValue.textContent = `${savedFontSize}px`;
-                document.getElementById('chapterContent').style.fontSize = `${savedFontSize}px`;
-                updateRangeBackground(fontSize);
+                chapterContentEl.style.fontSize = `${savedFontSize}px`;
+                updateRangeBackground(fontSizeInput);
             }
-            
+
             // 初始化所有范围输入控件的背景
             document.querySelectorAll('.custom-range').forEach(range => {
                 updateRangeBackground(range);
@@ -979,9 +1024,7 @@
         });
 
         // 修改拖动功能
-        document.addEventListener('DOMContentLoaded', function() {
-            const contentPanel = document.getElementById('contentPanel');
-            const settingsPanel = document.getElementById('settingsPanel');
+        document.addEventListener('DOMContentLoaded', function () {
             const container = contentPanel.parentElement;
             let isResizing = false;
             let currentHandle = null;
@@ -1050,11 +1093,11 @@
             if (savedLeft) contentPanel.style.transform = savedLeft;
 
             // 添加事件监听
-            document.getElementById('resizeHandleLeft').addEventListener('mousedown', e => {
+            resizeHandleLeft.addEventListener('mousedown', e => {
                 startResize(e, 'left');
             });
-            
-            document.getElementById('resizeHandleRight').addEventListener('mousedown', e => {
+
+            resizeHandleRight.addEventListener('mousedown', e => {
                 startResize(e, 'right');
             });
 
@@ -1069,15 +1112,15 @@
                 localStorage.removeItem('reader_content_left');
             }
 
-            document.getElementById('resizeHandleLeft').addEventListener('dblclick', resetLayout);
-            document.getElementById('resizeHandleRight').addEventListener('dblclick', resetLayout);
+            resizeHandleLeft.addEventListener('dblclick', resetLayout);
+            resizeHandleRight.addEventListener('dblclick', resetLayout);
 
             // 窗口大小改变时调整
-            window.addEventListener('resize', function() {
+            window.addEventListener('resize', function () {
                 const containerWidth = container.offsetWidth;
                 const settingsPanelWidth = settingsPanel.offsetWidth;
                 const contentWidth = contentPanel.offsetWidth;
-                
+
                 // 确保内容面板不会超出可用空间
                 if (contentWidth > containerWidth - settingsPanelWidth) {
                     contentPanel.style.width = `${containerWidth - settingsPanelWidth}px`;
@@ -1086,4 +1129,5 @@
         });
     </script>
 </body>
+
 </html>
