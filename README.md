@@ -104,7 +104,7 @@ Web版实现的功能
 安装termux
 
 换源：
-` sed -i 's@^ $deb.*stable main$ $@#\1\ndeb https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main stable main@' $PREFIX/etc/apt/sources.list`
+`sed -i 's@^\(deb.*stable main\)@#\1\ndeb https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main stable main@' $PREFIX/etc/apt/sources.list`
 `apt update && apt upgrade`
 
 `pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple`
