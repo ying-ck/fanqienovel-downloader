@@ -8,4 +8,4 @@ Flask-SocketIO
 gevent
 gevent-websocket
 beautifulsoup4
-
+fake-useragent

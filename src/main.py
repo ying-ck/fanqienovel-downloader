@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from token import OP
 import requests as req
 from lxml import etree
 from ebooklib import epub
@@ -14,6 +15,7 @@ import concurrent.futures
 from typing import Callable, Optional, Union, Literal
 from dataclasses import dataclass
 from enum import Enum, auto
+from fake_useragent import UserAgent
 
 
 class SaveMode(Enum):
@@ -32,7 +34,7 @@ class SaveMode(Enum):
 class Config:
     kg: int = 0
     kgf: str = "　"
-    delay: list[int] = None
+    delay: Optional[list[int]] = None
     save_path: str = ""
     save_mode: SaveMode = SaveMode.SINGLE_TXT
     space_mode: str = "halfwidth"
@@ -69,19 +71,6 @@ class NovelDownloader:
         self.progress_callback = progress_callback or self._default_progress
         self.log_callback = log_callback or print
 
-        # Initialize headers first
-        self.headers_lib = [
-            {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36"
-            },
-            {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0"
-            },
-            {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36 Edg/93.0.961.47"
-            },
-        ]
-
         # Use absolute paths based on script location
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
         self.data_dir = os.path.join(self.script_dir, "data")
@@ -112,7 +101,10 @@ class NovelDownloader:
         """
         随机更换headers
         """
-        return random.choice(self.headers_lib)
+        ua = UserAgent()
+        return {
+            "User-Agent": ua.random,
+        }
 
     def _setup_directories(self):
         """创建必要的目录"""
@@ -135,7 +127,11 @@ class NovelDownloader:
         self.log_callback("Cookie获取成功")
 
     def _default_progress(
-        self, current: int, total: int, desc: str = "", chapter_title: str = None
+        self,
+        current: int,
+        total: int,
+        desc: str = "",
+        chapter_title: Optional[str] = None,
     ) -> DownloadProgress:
         """Progress tracking for both CLI and web"""
         # For CLI: Use tqdm directly
@@ -268,15 +264,15 @@ class NovelDownloader:
         bas = 1000000000000000000
         for i in range(random.randint(bas * 6, bas * 8), bas * 9):
             time.sleep(
-                random.randint(self.config.delay[0], self.config.delay[1]) / 1000
+                random.randint(self.config.delay[0], self.config.delay[1]) / 1000  # type: ignore
             )
             self.cookie = f"novel_web_id={i}"
-            if len(self._download_chapter_content(chapter_id, test_mode=True)) > 200:
+            if len(self._download_chapter_content(chapter_id, test_mode=True)) > 200:  # type: ignore
                 with open(self.cookie_path, "w", encoding="UTF-8") as f:
                     json.dump(self.cookie, f)
                 return
 
-    def _download_txt(self, novel_id: int) -> str:
+    def _download_txt(self, novel_id: int) -> Optional[str]:
         """Download novel in TXT format"""
         try:
             name, chapters, status = self._get_chapter_list(novel_id)
@@ -342,7 +338,7 @@ class NovelDownloader:
                         try:
                             chapter_content = future.result()
                             if chapter_content:
-                                content[chapter_title] = chapter_content
+                                content[chapter_title] = chapter_content  # type: ignore
                                 # Save progress periodically
                                 if completed_chapters % 5 == 0:
                                     with open(
@@ -374,8 +370,8 @@ class NovelDownloader:
         finally:
             # Send 100% completion if not already sent
             if "completed_chapters" in locals() and "total_chapters" in locals():
-                if completed_chapters < total_chapters:
-                    self.progress_callback(total_chapters, total_chapters, "下载完成")
+                if completed_chapters < total_chapters:  # type: ignore
+                    self.progress_callback(total_chapters, total_chapters, "下载完成")  # type: ignore
 
     def _download_epub(self, novel_id: int) -> str:
         """Download novel in EPUB format"""
@@ -452,8 +448,8 @@ class NovelDownloader:
 
         finally:
             if "completed_chapters" in locals() and "total_chapters" in locals():
-                if completed_chapters < total_chapters:
-                    self.progress_callback(total_chapters, total_chapters, "下载完成")
+                if completed_chapters < total_chapters:  # type: ignore
+                    self.progress_callback(total_chapters, total_chapters, "下载完成")  # type: ignore
 
     def _download_chapter(
         self, title: str, chapter_id: str, existing_content: dict
@@ -469,12 +465,12 @@ class NovelDownloader:
 
         while retries > 0:
             try:
-                content = self._download_chapter_content(chapter_id)
+                content = self._download_chapter_content(int(chapter_id))
                 if content == "err":  # Add this check
                     raise Exception("Download failed")
 
                 time.sleep(
-                    random.randint(self.config.delay[0], self.config.delay[1]) / 1000
+                    random.randint(self.config.delay[0], self.config.delay[1]) / 1000  # type: ignore
                 )
 
                 # Handle cookie refresh
@@ -482,14 +478,14 @@ class NovelDownloader:
                     self.tcs += 1
                     if self.tcs > 7:
                         self.tcs = 0
-                        self._get_new_cookie(self.tzj)
+                        self._get_new_cookie(self.tzj)  # type: ignore
                     continue  # Try again with new cookie
 
                 # Save progress periodically
                 self.cs += 1
                 if self.cs >= 5:
                     self.cs = 0
-                    self._save_progress(title, content)
+                    self._save_progress(title, content)  # type: ignore
 
                 self.zj[title] = content  # Add this
                 return content
@@ -525,7 +521,7 @@ class NovelDownloader:
         chapter.content = f"<h1>{title}</h1>{formatted_content}"
         return chapter
 
-    def _save_single_txt(self, name: str, content: dict) -> str:
+    def _save_single_txt(self, name: str, content: dict) -> Optional[str]:
         """Save all chapters to a single TXT file"""
         output_path = os.path.join(self.config.save_path, f"{name}.txt")
         fg = "\n" + self.config.kgf * self.config.kg
@@ -637,8 +633,8 @@ class NovelDownloader:
 
         finally:
             if "completed_chapters" in locals() and "total_chapters" in locals():
-                if completed_chapters < total_chapters:
-                    self.progress_callback(total_chapters, total_chapters, "下载完成")
+                if completed_chapters < total_chapters:  # type: ignore
+                    self.progress_callback(total_chapters, total_chapters, "下载完成")  # type: ignore
 
     def _download_latex(self, novel_id: int) -> str:
         """Download novel in LaTeX format"""
@@ -704,8 +700,8 @@ class NovelDownloader:
 
         finally:
             if "completed_chapters" in locals() and "total_chapters" in locals():
-                if completed_chapters < total_chapters:
-                    self.progress_callback(total_chapters, total_chapters, "下载完成")
+                if completed_chapters < total_chapters:  # type: ignore
+                    self.progress_callback(total_chapters, total_chapters, "下载完成")  # type: ignore
 
     def _create_html_index(self, title: str, chapters: dict[str, str]) -> str:
         """Create HTML index page with CSS styling"""
@@ -909,7 +905,7 @@ class NovelDownloader:
     def _test_cookie(self, chapter_id: int, cookie: str) -> str:
         """Test if cookie is valid"""
         self.cookie = cookie
-        if len(self._download_chapter_content(chapter_id, test_mode=True)) > 200:
+        if len(self._download_chapter_content(chapter_id, test_mode=True)) > 200:  # type: ignore
             return "s"
         return "err"
 
@@ -917,7 +913,7 @@ class NovelDownloader:
         """Get novel info and chapter list"""
         url = f"https://fanqienovel.com/page/{novel_id}"
         response = req.get(url, headers=self.headers)
-        ele = etree.HTML(response.text)
+        ele = etree.HTML(response.text)  # type: ignore
 
         chapters = {}
         a_elements = ele.xpath('//div[@class="chapter"]/div/a')
@@ -940,7 +936,7 @@ class NovelDownloader:
 
     def _download_chapter_content(
         self, chapter_id: int, test_mode: bool = False
-    ) -> str:
+    ) -> Optional[str]:
         """Download content with fallback and better error handling"""
         headers = self.headers.copy()
         headers["cookie"] = self.cookie
@@ -956,7 +952,7 @@ class NovelDownloader:
                 response.raise_for_status()
 
                 content = "\n".join(
-                    etree.HTML(response.text).xpath(
+                    etree.HTML(response.text).xpath(  # type: ignore
                         '//div[@class="muye-reader-content noselect"]//p/text()'
                     )
                 )
@@ -1016,7 +1012,7 @@ class NovelDownloader:
             soup = BeautifulSoup(response.text, "lxml")
             script_tag = soup.find("script", type="application/ld+json")
             if script_tag:
-                data = json.loads(script_tag.string)
+                data = json.loads(script_tag.string)  # type: ignore
                 if "author" in data:
                     return data["author"][0]["name"]
         except Exception as e:
@@ -1031,7 +1027,7 @@ class NovelDownloader:
             soup = BeautifulSoup(response.text, "lxml")
             script_tag = soup.find("script", type="application/ld+json")
             if script_tag:
-                data = json.loads(script_tag.string)
+                data = json.loads(script_tag.string)  # type: ignore
                 if "image" in data:
                     return data["image"][0]
         except Exception as e:
@@ -1194,7 +1190,7 @@ class NovelDownloader:
     def _save_progress(self, title: str, content: str):
         """Save download progress"""
         self.zj[title] = content
-        with open(self.book_json_path, "w", encoding="UTF-8") as f:
+        with open(str(self.book_json_path), "w", encoding="utf-8") as f:
             json.dump(self.zj, f, ensure_ascii=False)
 
 
@@ -1313,7 +1309,7 @@ def create_cli():
             for url in urls:
                 if url and url[0] != "#":
                     print(f"开始下载链接: {url}")
-                    status = downloader.download_novel(url)
+                    status = downloader.download_novel(url)  # type: ignore
                     if not status:
                         print(f"链接: {url} 下载失败。")
                     else:
@@ -1335,11 +1331,11 @@ def create_cli():
                 )
             elif inp2 == "2":
                 print("由于迟过小造成的后果请自行负责。\n请输入下载间隔随机延迟")
-                config.delay[0] = int(
-                    input("下限（当前为%d）毫秒）：" % config.delay[0])
+                config.delay[0] = int(  # type: ignore
+                    input("下限（当前为%d）毫秒）：" % config.delay[0])  # type: ignore
                 )
-                config.delay[1] = int(
-                    input("上限（当前为%d）（毫秒）：" % config.delay[1])
+                config.delay[1] = int(  # type: ignore
+                    input("上限（当前为%d）（毫秒）：" % config.delay[1])  # type: ignore
                 )
             elif inp2 == "3":
                 print("tip:设置为当前目录点取消")
@@ -1400,7 +1396,7 @@ def create_cli():
 
         else:
             # Try to download novel directly
-            if downloader.download_novel(inp):
+            if downloader.download_novel(inp):  # type: ignore
                 print("下载完成")
             else:
                 print("请输入有效的选项或书籍ID。")
