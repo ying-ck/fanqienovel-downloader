@@ -17,6 +17,10 @@ from enum import Enum
 
 
 class SaveMode(Enum):
+    """
+    保存模式
+    """
+
     SINGLE_TXT = 1
     SPLIT_TXT = 2
     EPUB = 3
@@ -37,6 +41,19 @@ class Config:
     def __post_init__(self):
         if self.delay is None:
             self.delay = [50, 150]
+
+
+@dataclass
+class DownloadProgress:
+    """Progress info for both CLI and web"""
+
+    current: int
+    total: int
+    percentage: float
+    description: str
+    chapter_title: Optional[str] = None
+    status: str = "downloading"  # 'downloading', 'completed', 'error'
+    error: Optional[str] = None
 
 
 class NovelDownloader:
@@ -108,18 +125,6 @@ class NovelDownloader:
             self._get_new_cookie(tzj)
 
         self.log_callback("Cookie获取成功")
-
-    @dataclass
-    class DownloadProgress:
-        """Progress info for both CLI and web"""
-
-        current: int
-        total: int
-        percentage: float
-        description: str
-        chapter_title: Optional[str] = None
-        status: str = "downloading"  # 'downloading', 'completed', 'error'
-        error: Optional[str] = None
 
     def _default_progress(
         self, current: int, total: int, desc: str = "", chapter_title: str = None

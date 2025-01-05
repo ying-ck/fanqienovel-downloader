@@ -7,7 +7,6 @@ from flask_socketio import SocketIO, emit
 from main import NovelDownloader, Config, SaveMode
 import os
 import threading
-import queue
 import zipfile
 import io
 import logging
@@ -17,7 +16,6 @@ import json
 import sys
 import re
 from functools import wraps
-import shutil
 import concurrent.futures
 from tqdm import tqdm
 import traceback

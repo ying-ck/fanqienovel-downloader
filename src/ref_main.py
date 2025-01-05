@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import requests as req
 from lxml import etree
-from lxml import html
 from tkinter import Tk, filedialog
 from ebooklib import epub
 from tqdm import tqdm
@@ -200,7 +199,7 @@ def sanitize_filename(filename):
 
 
 def download_chapter(chapter_title, chapter_id, ozj):
-    global zj, cs, book_json_path, json
+    global zj, cs, book_json_path
     f = False
     if chapter_title in ozj:
         try:
@@ -228,14 +227,14 @@ def download_chapter(chapter_title, chapter_id, ozj):
 
 
 def down_book(it, chapter_range=""):
-    global zj, cs, book_json_path, json
+    global zj, cs, book_json_path
     name, zj, zt = down_zj(it)
     if name == "err":
         return "err"
     zt = zt[0]
 
     safe_name = sanitize_filename(name + chapter_range)
-    book_dir = os.path.join(script_dir, safe_name)
+    # book_dir = os.path.join(script_dir, safe_name)
     print("\n开始下载《%s》，状态‘%s’" % (name, zt))
     book_json_path = os.path.join(bookstore_dir, safe_name + ".json")
 
@@ -246,7 +245,7 @@ def down_book(it, chapter_range=""):
         ozj = {}
 
     cs = 0
-    tcs = 0
+    # tcs = 0
     tasks = []
     # 使用配置的线程数创建线程池
     if "xc" in config:
