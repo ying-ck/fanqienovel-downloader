@@ -265,7 +265,7 @@ def down_book(it, chapter_range=""):
     # 获取作者信息和内容简介
     url = f"https://fanqienovel.com/page/{it}"
     response = req.get(url)
-    soup = BeautifulSoup(response.text, "html.parser")
+    soup = BeautifulSoup(response.text, "lxml")
     # 获取小说名
     name_element = soup.find("h1")
     if name_element:
@@ -328,6 +328,9 @@ def down_book(it, chapter_range=""):
 
 
 def download_chapter_epub(chapter_title, chapter_id):
+    """
+    下载epub格式的章节内容
+    """
     try:
         tqdm.write(f"下载 {chapter_title}")
         chapter_content, _ = down_text(chapter_id)
@@ -345,7 +348,7 @@ def download_chapter_epub(chapter_title, chapter_id):
 
 
 def down_book_epub(it, chapter_range=""):
-    global zj, cs, book_json_path, json
+    global zj, cs, book_json_path
     name, zj, zt = down_zj(it)
     if name == "err":
         return "err"
@@ -358,7 +361,7 @@ def down_book_epub(it, chapter_range=""):
     # 获取作者信息和内容简介
     url = f"https://fanqienovel.com/page/{it}"
     response = req.get(url)
-    soup = BeautifulSoup(response.text, "html.parser")
+    soup = BeautifulSoup(response.text, "lxml")
 
     # 获取作者信息
     author_name_element = soup.find("div", class_="author-name")
@@ -475,7 +478,7 @@ def down_book_html(it, chapter_range=""):
     # 获取作者信息和内容简介
     url = f"https://fanqienovel.com/page/{it}"
     response = req.get(url)
-    soup = BeautifulSoup(response.text, "html.parser")
+    soup = BeautifulSoup(response.text, "lxml")
     # 获取小说名
     name_element = soup.find("h1")
     if name_element:
@@ -918,7 +921,7 @@ def down_book_latex(it, chapter_range=""):
     # 获取作者信息和内容简介
     url = f"https://fanqienovel.com/page/{it}"
     response = req.get(url)
-    soup = BeautifulSoup(response.text, "html.parser")
+    soup = BeautifulSoup(response.text, "lxml")
     # 获取小说名
     name_element = soup.find("h1")
     if name_element:
@@ -1386,7 +1389,7 @@ while True:
                 author_name = None
                 url = f"https://fanqienovel.com/page/{book_id}"
                 response = req.get(url)
-                soup = BeautifulSoup(response.text, "html.parser")
+                soup = BeautifulSoup(response.text, "lxml")
                 script_tag = soup.find("script", type="application/ld+json")
                 if script_tag:
                     json_data = script_tag.string

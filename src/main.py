@@ -11,9 +11,9 @@ import os
 import platform
 import shutil
 import concurrent.futures
-from typing import Callable, Optional, Dict, List, Union
+from typing import Callable, Optional, Dict, List, Union, Literal
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 
 
 class SaveMode(Enum):
@@ -21,11 +21,11 @@ class SaveMode(Enum):
     保存模式
     """
 
-    SINGLE_TXT = 1
-    SPLIT_TXT = 2
-    EPUB = 3
-    HTML = 4
-    LATEX = 5
+    SINGLE_TXT = auto()
+    SPLIT_TXT = auto()
+    EPUB = auto()
+    HTML = auto()
+    LATEX = auto()
 
 
 @dataclass
@@ -52,7 +52,9 @@ class DownloadProgress:
     percentage: float
     description: str
     chapter_title: Optional[str] = None
-    status: str = "downloading"  # 'downloading', 'completed', 'error'
+    status: Literal["downloading", "completed", "error"] = (
+        "downloading"  # 'downloading', 'completed', 'error'
+    )
     error: Optional[str] = None
 
 
@@ -79,7 +81,6 @@ class NovelDownloader:
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36 Edg/93.0.961.47"
             },
         ]
-        self.headers = random.choice(self.headers_lib)
 
         # Use absolute paths based on script location
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -106,13 +107,20 @@ class NovelDownloader:
         self.tzj = None  # Test chapter ID
         self.book_json_path = None  # Current book's JSON path
 
+    @property
+    def headers(self):
+        """
+        随机更换headers
+        """
+        return random.choice(self.headers_lib)
+
     def _setup_directories(self):
-        """Create necessary directories if they don't exist"""
+        """创建必要的目录"""
         os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.bookstore_dir, exist_ok=True)
 
     def _init_cookie(self):
-        """Initialize cookie for downloads"""
+        """获取cookie"""
         self.log_callback("正在获取cookie")
         tzj = self._get_initial_chapter_id()
 
@@ -1003,7 +1011,7 @@ class NovelDownloader:
         url = f"https://fanqienovel.com/page/{novel_id}"
         try:
             response = req.get(url, headers=self.headers)
-            soup = BeautifulSoup(response.text, "html.parser")
+            soup = BeautifulSoup(response.text, "lxml")
             script_tag = soup.find("script", type="application/ld+json")
             if script_tag:
                 data = json.loads(script_tag.string)
@@ -1018,7 +1026,7 @@ class NovelDownloader:
         url = f"https://fanqienovel.com/page/{novel_id}"
         try:
             response = req.get(url, headers=self.headers)
-            soup = BeautifulSoup(response.text, "html.parser")
+            soup = BeautifulSoup(response.text, "lxml")
             script_tag = soup.find("script", type="application/ld+json")
             if script_tag:
                 data = json.loads(script_tag.string)
@@ -1218,7 +1226,7 @@ def create_cli():
             else:
                 print("备份文件夹不存在，无法使用备份数据。")
         elif choice != "2":
-            print("入无效，请重新运行程序并正确输入。")
+            print("输入无效，请重新运行程序并正确输入。")
     else:
         print("程序还未备份")
 
