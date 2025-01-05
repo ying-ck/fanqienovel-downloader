@@ -11,7 +11,7 @@ import os
 import platform
 import shutil
 import concurrent.futures
-from typing import Callable, Optional, Dict, List, Union, Literal
+from typing import Callable, Optional, Union, Literal
 from dataclasses import dataclass
 from enum import Enum, auto
 
@@ -32,7 +32,7 @@ class SaveMode(Enum):
 class Config:
     kg: int = 0
     kgf: str = "　"
-    delay: List[int] = None
+    delay: list[int] = None
     save_path: str = ""
     save_mode: SaveMode = SaveMode.SINGLE_TXT
     space_mode: str = "halfwidth"
@@ -210,7 +210,7 @@ class NovelDownloader:
             self.log_callback(f"下载失败: {str(e)}")
             return "err"
 
-    def search_novel(self, keyword: str) -> List[Dict]:
+    def search_novel(self, keyword: str) -> list[dict]:
         """
         Search for novels by keyword
         Returns list of novel info dictionaries
@@ -267,7 +267,9 @@ class NovelDownloader:
         """Generate new cookie"""
         bas = 1000000000000000000
         for i in range(random.randint(bas * 6, bas * 8), bas * 9):
-            time.sleep(random.randint(50, 150) / 1000)
+            time.sleep(
+                random.randint(self.config.delay[0], self.config.delay[1]) / 1000
+            )
             self.cookie = f"novel_web_id={i}"
             if len(self._download_chapter_content(chapter_id, test_mode=True)) > 200:
                 with open(self.cookie_path, "w", encoding="UTF-8") as f:
@@ -454,7 +456,7 @@ class NovelDownloader:
                     self.progress_callback(total_chapters, total_chapters, "下载完成")
 
     def _download_chapter(
-        self, title: str, chapter_id: str, existing_content: Dict
+        self, title: str, chapter_id: str, existing_content: dict
     ) -> Optional[str]:
         """Download a single chapter with retries"""
         if title in existing_content:
@@ -539,7 +541,7 @@ class NovelDownloader:
                     # 在 f-string 中使用这个变量
                     f.write(f"{modified_content}\n")
 
-    def _save_split_txt(self, name: str, content: Dict) -> str:
+    def _save_split_txt(self, name: str, content: dict) -> str:
         """Save each chapter to a separate TXT file"""
         output_dir = os.path.join(self.config.save_path, name)
         os.makedirs(output_dir, exist_ok=True)
@@ -705,7 +707,7 @@ class NovelDownloader:
                 if completed_chapters < total_chapters:
                     self.progress_callback(total_chapters, total_chapters, "下载完成")
 
-    def _create_html_index(self, title: str, chapters: Dict[str, str]) -> str:
+    def _create_html_index(self, title: str, chapters: dict[str, str]) -> str:
         """Create HTML index page with CSS styling"""
         return f"""
 <!DOCTYPE html>
@@ -796,7 +798,7 @@ class NovelDownloader:
 """
 
     def _download_chapter_for_html(
-        self, title: str, chapter_id: str, output_dir: str, all_titles: List[str]
+        self, title: str, chapter_id: str, output_dir: str, all_titles: list[str]
     ) -> None:
         """Download and format chapter for HTML"""
         content = self._download_chapter(title, chapter_id, {})
@@ -1078,7 +1080,7 @@ class NovelDownloader:
             self.log_callback(f"Invalid novel ID: {novel_id}")
             return None
 
-    def get_downloaded_novels(self) -> List[Dict[str, str]]:
+    def get_downloaded_novels(self) -> list[dict[str, str]]:
         """Get list of downloaded novels with their paths"""
         novels = []
         for filename in os.listdir(self.bookstore_dir):
