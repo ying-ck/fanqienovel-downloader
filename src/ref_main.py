@@ -8,7 +8,234 @@ from tqdm import tqdm
 from bs4 import BeautifulSoup
 import json, time, random, os, platform, shutil
 import concurrent.futures
+import threading
+import asyncio
+import sys
 
+# Add edge-tts support check
+try:
+    import edge_tts
+    AUDIO_SUPPORT = True
+except ImportError:
+    AUDIO_SUPPORT = False
+
+class NetworkManager:
+    def __init__(self):
+        self.min_threads = 1
+        self.max_threads = 10
+        self.current_threads = 1
+        self.network_check_interval = 30
+        self.last_check_time = 0
+        self.retry_delays = [1, 2, 4, 8, 16]
+        self.last_network_score = 0
+        self.session = req.Session()
+        self.session.mount('http://', req.adapters.HTTPAdapter(max_retries=3))
+        self.session.mount('https://', req.adapters.HTTPAdapter(max_retries=3))
+        
+        self.session.headers.update({
+            'User-Agent': random.choice(headers_lib)['User-Agent'],
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'Connection': 'keep-alive'
+        })
+        
+    def get_session(self):
+        return self.session
+        
+    def make_request(self, url, method='GET', **kwargs):
+        max_retries = kwargs.pop('max_retries', 3)
+        retry_delay = kwargs.pop('retry_delay', 1)
+        timeout = kwargs.pop('timeout', 10)
+        
+        for retry in range(max_retries):
+            try:
+                response = self.session.request(
+                    method,
+                    url,
+                    timeout=timeout,
+                    **kwargs
+                )
+                response.raise_for_status()
+                return response
+            except req.Timeout:
+                print(f"请求超时,重试第{retry + 1}次...")
+            except req.RequestException as e:
+                print(f"网络错误: {e},重试第{retry + 1}次...")
+            except Exception as e:
+                print(f"未知错误: {e},重试第{retry + 1}次...")
+                
+            if retry < max_retries - 1:
+                time.sleep(retry_delay)
+                retry_delay *= 2
+                
+        raise req.RequestException(f"请求失败,已重试{max_retries}次")
+        
+    def check_network_status(self):
+        try:
+            start_time = time.time()
+            response = self.make_request('https://fanqienovel.com', timeout=5)
+            latency = time.time() - start_time
+            
+            if response.status_code == 200:
+                # 基于延迟计算网络评分
+                if latency < 0.5:
+                    score = 100
+                elif latency < 1:
+                    score = 80
+                elif latency < 2:
+                    score = 60
+                elif latency < 3:
+                    score = 40
+                else:
+                    score = 20
+                self.last_network_score = score
+                return score
+            return 0
+        except:
+            self.last_network_score = 0
+            return 0
+            
+    def display_network_status(self):
+        score = self.check_network_status()
+        print(f"网络状态: {'良好' if score >= 60 else '一般' if score >= 40 else '较差'}")
+        
+    def close(self):
+        try:
+            self.session.close()
+        except:
+            pass
+        
+    def adjust_threads(self):
+        current_time = time.time()
+        if current_time - self.last_check_time >= self.network_check_interval:
+            network_score = self.check_network_status()
+            self.last_check_time = current_time
+            
+            if network_score >= 80:
+                self.current_threads = min(self.current_threads + 1, self.max_threads)
+            elif network_score <= 40:
+                self.current_threads = max(self.current_threads - 1, self.min_threads)
+            
+            return self.current_threads
+
+class ConfigChecker:
+    def __init__(self):
+        self.check_results = {
+            'config_file': False,
+            'config_format': False,
+            'required_fields': False,
+            'value_types': False,
+            'value_ranges': False,
+            'directories': False
+        }
+        self.required_fields = {
+            'kg': int,
+            'kgf': str,
+            'delay': list,
+            'save_path': str,
+            'save_mode': int,
+            'space_mode': str,
+            'xc': int,
+            'enable_chapter_numbering': bool,
+            'auto_retry': bool,
+            'max_retries': int,
+            'timeout': int,
+            'version': str
+        }
+        self.value_ranges = {
+            'kg': (0, 10),
+            'save_mode': (1, 5),
+            'xc': (1, 32),
+            'max_retries': (1, 10),
+            'timeout': (1, 60)
+        }
+        
+    def check_config_file(self, config_path):
+        """检查配置文件是否存在且可访问"""
+        try:
+            self.check_results['config_file'] = os.path.exists(config_path)
+            return self.check_results['config_file']
+        except Exception as e:
+            print(f"检查配置文件时出错: {e}")
+            return False
+            
+    def check_config_format(self, config):
+        """检查配置文件格式是否正确"""
+        try:
+            if isinstance(config, dict):
+                self.check_results['config_format'] = True
+                return True
+            return False
+        except Exception:
+            return False
+            
+    def check_required_fields(self, config):
+        """检查必需字段是否存在且类型正确"""
+        try:
+            for field, field_type in self.required_fields.items():
+                if field not in config or not isinstance(config[field], field_type):
+                    return False
+            self.check_results['required_fields'] = True
+            return True
+        except Exception:
+            return False
+            
+    def check_value_ranges(self, config):
+        """检查数值是否在有效范围内"""
+        try:
+            for field, (min_val, max_val) in self.value_ranges.items():
+                if field in config:
+                    value = config[field]
+                    if not (min_val <= value <= max_val):
+                        return False
+            self.check_results['value_ranges'] = True
+            return True
+        except Exception:
+            return False
+            
+    def check_directories(self, config):
+        """检查必需的目录是否存在且可访问"""
+        try:
+            required_dirs = ['data', 'bookstore']
+            for dir_name in required_dirs:
+                dir_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), dir_name)
+                if not os.path.exists(dir_path) or not os.path.isdir(dir_path):
+                    return False
+            self.check_results['directories'] = True
+            return True
+        except Exception:
+            return False
+            
+    def perform_check(self, config_path, config):
+        """执行所有检查并返回结果"""
+        # 检查是否是首次运行（data文件夹不存在）
+        data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+        if not os.path.exists(data_dir):
+            print("\n首次运行程序，跳过配置检查...")
+            return True
+            
+        checks = [
+            (self.check_config_file(config_path), "配置文件检查"),
+            (self.check_config_format(config), "配置格式检查"),
+            (self.check_required_fields(config), "必需字段检查"),
+            (self.check_value_ranges(config), "数值范围检查"),
+            (self.check_directories(config), "目录检查")
+        ]
+        
+        print("\n配置检查结果:")
+        all_passed = True
+        for result, description in checks:
+            status = "通过" if result else "失败"
+            print(f"{description}: {status}")
+            if not result:
+                all_passed = False
+                
+        if all_passed:
+            print("\n所有配置检查通过！")
+        else:
+            print("\n配置检查未完全通过，程序可能无法正常运行。")
+            
+        return all_passed
 
 CODE = [[58344, 58715], [58345, 58716]]
 charset = json.loads(
@@ -83,12 +310,17 @@ def str_interpreter(n, mode):
 
 def down_text(it, mod=1):
     global cookie
-    headers2 = headers
+    headers2 = headers.copy()
     headers2['cookie'] = cookie
     f = False
-    while True:
+    max_retries = 3
+    retry_count = 0
+    
+    while retry_count < max_retries:
         try:
-            res = req.get('https://fanqienovel.com/reader/' + str(it), headers=headers2)
+            res = req.get('https://fanqienovel.com/reader/' + str(it), 
+                         headers=headers2, 
+                         timeout=10)
             ele = etree.HTML(res.text)
 
             n = '\n'.join(ele.xpath('//div[@class="muye-reader-content noselect"]//p/text()'))
@@ -96,12 +328,17 @@ def down_text(it, mod=1):
                 n = '\n'.join(ele.xpath('//div[@class="muye-reader-content muye-reader-story-content noselect"]//p/text()'))
 
             break
-        except:
+        except Exception as e:
+            retry_count += 1
             if mod == 2:
-                return ('err')
+                return 'err'
             f = True
-            time.sleep(0.4)
-
+            print(f"下载出错,正在重试({retry_count}/{max_retries}): {str(e)}")
+            time.sleep(0.4 * retry_count)
+    
+    if retry_count >= max_retries:
+        print("达到最大重试次数,下载失败")
+        return ('err', True) if mod == 1 else 'err'
     if mod == 1:
         s = str_interpreter(n, 0)
     else:
@@ -165,6 +402,7 @@ def down_text_old(it, mod=1):
                 a = (a + '\n').replace('\n\n', '\n')
         return a, f
 
+
 def sanitize_filename(filename):
     illegal_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
     illegal_chars_rep = ['＜', '＞', '：', '＂', '／', '＼', '｜', '？', '＊']
@@ -208,7 +446,7 @@ def down_book(it, chapter_range=""):
 
     safe_name = sanitize_filename(name + chapter_range)
     book_dir = os.path.join(script_dir, safe_name)
-    print('\n开始下载《%s》，状态‘%s’' % (name, zt))
+    print(f'\n开始下载《{name}》，状态：{zt}')
     book_json_path = os.path.join(bookstore_dir, safe_name + '.json')
 
     if os.path.exists(book_json_path):
@@ -429,7 +667,7 @@ def down_book_html(it, chapter_range=""):
     if not os.path.exists(book_dir):
         os.makedirs(book_dir)
 
-    print('\n开始下载《%s》，状态‘%s’' % (name, zt))
+    print('\n开始下载《%s》，状态' % (name, zt))
     book_json_path = os.path.join(bookstore_dir, safe_name + '.json')
 
     existing_json_content = {}
@@ -856,7 +1094,7 @@ def down_book_latex(it, chapter_range=""):
 
     safe_name = sanitize_filename(name + chapter_range)
 
-    print('\n开始下载《%s》，状态‘%s’' % (name, zt))
+    print('\n开始下载《%s》，状态' % (name, zt))
     book_json_path = os.path.join(bookstore_dir, safe_name + '.json')
 
     existing_json_content = {}
@@ -907,7 +1145,6 @@ def down_book_latex(it, chapter_range=""):
     cs = 0
     tcs = 0
     tasks = []
-    # 使用配置的线程数创建线程池
     if 'xc' in config:
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=config['xc'])
     else:
@@ -919,7 +1156,6 @@ def down_book_latex(it, chapter_range=""):
         chapter_title = future.result()
         pbar.update(1)
 
-    # 在脚本所在目录下输出 LaTeX 文件
     latex_file_path = os.path.join(script_dir, f'{safe_name}.tex')
     with open(latex_file_path, 'w', encoding='UTF-8') as latex_file:
         latex_file.write(latex_content)
@@ -929,7 +1165,7 @@ def down_book_latex(it, chapter_range=""):
 
 def select_save_directory():
     root = Tk()
-    root.withdraw()  # 隐藏主窗口
+    root.withdraw()
     return filedialog.askdirectory(title='请选择保存小说的文件夹')
 
 def search():
@@ -937,7 +1173,6 @@ def search():
         key = input("请输入搜索关键词（直接Enter返回）：")
         if key == '':
             return 'b'
-        # 使用新的API进行搜索
         url = f"https://api5-normal-lf.fqnovel.com/reading/bookapi/search/page/v/?query={key}&aid=1967&channel=0&os_version=0&device_type=0&device_platform=0&iid=466614321180296&passback={{(page-1)*10}}&version_code=999"
         response = req.get(url)
         if response.status_code == 200:
@@ -970,6 +1205,11 @@ def book2down(inp):
         inp = inp.split('?')[0].split('/')[-1]
     try:
         book_id = int(inp)
+        # 检查record.json是否存在，不存在则创建
+        if not os.path.exists(record_path):
+            with open(record_path, 'w', encoding='UTF-8') as f:
+                json.dump([], f)
+        
         with open(record_path, 'r', encoding='UTF-8') as f:
             records = json.load(f)
         if book_id not in records:
@@ -991,7 +1231,6 @@ def book2down(inp):
         else:
             status = down_book(book_id, chapter_range)
             
-        # 清除章节范围信息
         if hasattr(book2down, 'start_chapter'):
             delattr(book2down, 'start_chapter')
         if hasattr(book2down, 'end_chapter'):
@@ -1005,103 +1244,584 @@ def book2down(inp):
     except ValueError:
         return 'err'
 
-script_dir = ''
 
-data_dir = os.path.join(script_dir, 'data')
+class Config:
+    def __init__(self):
+        # 获取程序的基础路径
+        if getattr(sys, 'frozen', False):
+            # 如果是exe环境，使用exe所在目录
+            self.script_dir = os.path.dirname(sys.executable)
+        else:
+            # 如果是Python环境，使用脚本所在目录
+            self.script_dir = os.path.dirname(os.path.abspath(__file__))
+            
+        self.data_dir = os.path.join(self.script_dir, 'data')
+        self.bookstore_dir = os.path.join(self.data_dir, 'bookstore')
+        self.config_path = os.path.join(self.data_dir, 'config.json')
+        self.default_config = {
+            'kg': 2,
+            'kgf': '　',
+            'delay': [50, 150],
+            'save_path': '',
+            'save_mode': 1,
+            'space_mode': 'halfwidth',
+            'xc': 1,
+            'enable_chapter_numbering': False,
+            'auto_retry': True,
+            'max_retries': 3,
+            'timeout': 10,
+            'version': '1.1.16',
+            'auto_backup': True
+        }
+        # 首次运行时直接使用默认配置
+        if not os.path.exists(self.data_dir):
+            self.config = self.default_config.copy()
+        else:
+            self.config = self.load_config()
+            
+    def create_directories(self):
+        """创建必要的目录和文件"""
+        try:
+            # 创建data目录
+            if not os.path.exists(self.data_dir):
+                os.makedirs(self.data_dir)
+                print(f"✓ 已创建数据目录: {self.data_dir}")
+            
+            # 创建bookstore目录
+            if not os.path.exists(self.bookstore_dir):
+                os.makedirs(self.bookstore_dir)
+                print(f"✓ 已创建书库目录: {self.bookstore_dir}")
+            
+            # 创建或更新配置文件
+            if not os.path.exists(self.config_path):
+                with open(self.config_path, 'w', encoding='UTF-8') as f:
+                    json.dump(self.default_config, f, indent=2, ensure_ascii=False)
+                print(f"✓ 已创建配置文件: {self.config_path}")
+            
+            # 创建record.json
+            record_path = os.path.join(self.data_dir, 'record.json')
+            if not os.path.exists(record_path):
+                with open(record_path, 'w', encoding='UTF-8') as f:
+                    json.dump([], f)
+                print(f"✓ 已创建下载记录文件: {record_path}")
+                
+            return True
+        except Exception as e:
+            print(f"创建目录或文件时出错: {e}")
+            return False
+            
+    def __getitem__(self, key):
+        try:
+            return self.config[key]
+        except (KeyError, TypeError):
+            # 如果键不存在或config不是字典，返回默认配置中的值
+            if isinstance(key, str) and key in self.default_config:
+                return self.default_config[key]
+            # 如果在默认配置中也不存在，返回None
+            return None
+        
+    def __setitem__(self, key, value):
+        self.config[key] = value
+        self.save_config()
+        
+    def __contains__(self, key):
+        return key in self.config or key in self.default_config
 
-if not os.path.exists(data_dir):
-    os.makedirs(data_dir)
+    def self_check(self):
+        """执行程序自检"""
+        check_results = {
+            'runtime_env': {'status': True, 'details': []},
+            'network': {'status': True, 'details': []},
+            'files_and_dirs': {'status': True, 'details': []},
+            'permissions': {'status': True, 'details': []},
+            'config': {'status': True, 'details': []}
+        }
+        
+        # 检查运行环境
+        try:
+            # 检查是否在 exe 环境中运行
+            if getattr(sys, 'frozen', False):
+                check_results['runtime_env']['details'].append("✓ 正在 exe 环境中运行")
+                check_results['runtime_env']['details'].append(f"✓ 程序目录: {self.script_dir}")
+            else:
+                check_results['runtime_env']['details'].append("✓ 正在 Python 环境中运行")
+            
+            # 检查必要功能是否可用
+            try:
+                # 测试请求功能
+                req.get('https://www.baidu.com', timeout=1)
+                check_results['runtime_env']['details'].append("✓ 网络请求功能正常")
+            except:
+                pass
+            
+            try:
+                # 测试文件操作功能
+                test_file = os.path.join(self.data_dir, 'test.tmp')
+                with open(test_file, 'w') as f:
+                    f.write('test')
+                os.remove(test_file)
+                check_results['runtime_env']['details'].append("✓ 文件操作功能正常")
+            except:
+                check_results['runtime_env']['status'] = False
+                check_results['runtime_env']['details'].append("✗ 文件操作功能异常")
+            
+            try:
+                # 测试JSON功能
+                json.dumps({"test": "test"})
+                check_results['runtime_env']['details'].append("✓ JSON功能正常")
+            except:
+                check_results['runtime_env']['status'] = False
+                check_results['runtime_env']['details'].append("✗ JSON功能异常")
+                
+        except Exception as e:
+            check_results['runtime_env']['status'] = False
+            check_results['runtime_env']['details'].append(f"✗ 运行环境检查出错: {str(e)}")
+        
+        # 检查网络连接
+        try:
+            response = req.get('https://fanqienovel.com', timeout=5)
+            if response.status_code == 200:
+                check_results['network']['details'].append("✓ 网站连接正常")
+            else:
+                check_results['network']['status'] = False
+                check_results['network']['details'].append(f"✗ 网站返回状态码: {response.status_code}")
+        except Exception as e:
+            check_results['network']['status'] = False
+            check_results['network']['details'].append(f"✗ 网络连接失败: {str(e)}")
+        
+        # 检查文件和目录
+        try:
+            base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+            required_dirs = [self.data_dir, self.bookstore_dir]
+            required_files = [self.config_path, os.path.join(self.data_dir, 'record.json')]
+            
+            for dir_path in required_dirs:
+                if os.path.exists(dir_path):
+                    if os.path.isdir(dir_path):
+                        check_results['files_and_dirs']['details'].append(f"✓ 目录存在: {dir_path}")
+                    else:
+                        check_results['files_and_dirs']['status'] = False
+                        check_results['files_and_dirs']['details'].append(f"✗ 路径不是目录: {dir_path}")
+                else:
+                    try:
+                        os.makedirs(dir_path)
+                        check_results['files_and_dirs']['details'].append(f"✓ 已创建目录: {dir_path}")
+                    except:
+                        check_results['files_and_dirs']['status'] = False
+                        check_results['files_and_dirs']['details'].append(f"✗ 无法创建目录: {dir_path}")
+                        
+            for file_path in required_files:
+                if os.path.exists(file_path):
+                    check_results['files_and_dirs']['details'].append(f"✓ 文件存在: {file_path}")
+                else:
+                    check_results['files_and_dirs']['status'] = False
+                    check_results['files_and_dirs']['details'].append(f"✗ 文件不存在: {file_path}")
+                    
+        except Exception as e:
+            check_results['files_and_dirs']['status'] = False
+            check_results['files_and_dirs']['details'].append(f"✗ 检查目录时出错: {str(e)}")
+        
+        # 检查文件权限
+        try:
+            files_to_check = [self.config_path]
+            for file_path in files_to_check:
+                if os.path.exists(file_path):
+                    try:
+                        # 检查读权限
+                        with open(file_path, 'r', encoding='UTF-8') as f:
+                            f.read(1)
+                        check_results['permissions']['details'].append(f"✓ 文件可读: {file_path}")
+                        
+                        # 检查写权限
+                        try:
+                            with open(file_path, 'a', encoding='UTF-8') as f:
+                                pass
+                            check_results['permissions']['details'].append(f"✓ 文件可写: {file_path}")
+                        except:
+                            check_results['permissions']['status'] = False
+                            check_results['permissions']['details'].append(f"✗ 文件不可写: {file_path}")
+                    except:
+                        check_results['permissions']['status'] = False
+                        check_results['permissions']['details'].append(f"✗ 文件不可读: {file_path}")
+                else:
+                    try:
+                        # 尝试创建文件
+                        with open(file_path, 'w', encoding='UTF-8') as f:
+                            json.dump(self.default_config, f, indent=2, ensure_ascii=False)
+                        check_results['permissions']['details'].append(f"✓ 已创建配置文件: {file_path}")
+                    except:
+                        check_results['permissions']['status'] = False
+                        check_results['permissions']['details'].append(f"✗ 无法创建文件: {file_path}")
+        except Exception as e:
+            check_results['permissions']['status'] = False
+            check_results['permissions']['details'].append(f"✗ 检查文件权限时出错: {str(e)}")
+        
+        # 检查配置文件
+        try:
+            if os.path.exists(self.config_path):
+                with open(self.config_path, 'r', encoding='UTF-8') as f:
+                    config_data = json.load(f)
+                    for key in self.default_config:
+                        if key not in config_data:
+                            check_results['config']['status'] = False
+                            check_results['config']['details'].append(f"✗ 配置缺少字段: {key}")
+                    if check_results['config']['status']:
+                        check_results['config']['details'].append("✓ 配置文件完整")
+            else:
+                try:
+                    # 尝试创建默认配置文件
+                    with open(self.config_path, 'w', encoding='UTF-8') as f:
+                        json.dump(self.default_config, f, indent=2, ensure_ascii=False)
+                    check_results['config']['details'].append("✓ 已创建默认配置文件")
+                except:
+                    check_results['config']['status'] = False
+                    check_results['config']['details'].append("✗ 无法创建配置文件")
+        except Exception as e:
+            check_results['config']['status'] = False
+            check_results['config']['details'].append(f"✗ 检查配置文件时出错: {str(e)}")
+        
+        return check_results
 
-bookstore_dir = os.path.join(data_dir, 'bookstore')
+    def load_config(self):
+        try:
+            # 首次运行时不尝试加载配置文件
+            if not os.path.exists(self.data_dir):
+                return self.default_config.copy()
+                
+            if os.path.exists(self.config_path):
+                with open(self.config_path, 'r', encoding='UTF-8') as f:
+                    try:
+                        config = json.load(f)
+                        # 合并默认配置和用户配置
+                        merged_config = self.default_config.copy()
+                        merged_config.update(config)
+                        return merged_config
+                    except json.JSONDecodeError:
+                        print("配置文件格式错误，将使用默认配置")
+                        # 备份错误的配置文件
+                        if os.path.exists(self.config_path):
+                            backup_path = self.config_path + '.backup'
+                            try:
+                                shutil.copy2(self.config_path, backup_path)
+                                print(f"已备份原配置文件到: {backup_path}")
+                            except Exception as e:
+                                print(f"备份配置文件失败: {e}")
+                        # 创建新的配置文件
+                        with open(self.config_path, 'w', encoding='UTF-8') as f:
+                            json.dump(self.default_config, f, indent=2, ensure_ascii=False)
+                        return self.default_config.copy()
+            return self.default_config.copy()
+        except Exception as e:
+            print(f"加载配置文件出错: {e}")
+            return self.default_config.copy()
+        
+    def save_config(self):
+        try:
+            # 确保目录存在
+            if os.path.exists(self.data_dir):
+                with open(self.config_path, 'w', encoding='UTF-8') as f:
+                    json.dump(self.config, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"保存配置文件出错: {e}")
+            
+    def get(self, key, default=None):
 
-if not os.path.exists(bookstore_dir):
-    os.makedirs(bookstore_dir)
+        return self.config.get(key, default)
+        
+    def set(self, key, value):
+        self.config[key] = value
+        self.save_config()
 
+# 初始化配置
+config = Config()
+
+def get_backup_path():
+    """获取备份路径"""
+    if platform.system() == "Windows":
+        backup_path = os.path.join(os.environ.get('APPDATA', ''), 'fanqie_downloader_backup')
+    else:
+        backup_path = os.path.join(os.path.expanduser('~'), '.fanqie_downloader_backup')
+    return backup_path
+
+def perform_backup():
+    """执行备份操作"""
+    try:
+        backup_path = get_backup_path()
+        if not os.path.exists(backup_path):
+            os.makedirs(backup_path)
+            
+        # 获取源文件夹路径
+        source_path = os.path.dirname(os.path.abspath(__file__))
+        data_dir = os.path.join(source_path, 'data')
+        
+        # 如果data目录不存在，创建它
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
+            
+        # 清理旧的备份
+        if os.path.exists(backup_path):
+            for item in os.listdir(backup_path):
+                item_path = os.path.join(backup_path, item)
+                try:
+                    if os.path.isfile(item_path):
+                        os.remove(item_path)
+                    elif os.path.isdir(item_path):
+                        shutil.rmtree(item_path)
+                except Exception as e:
+                    print(f"清理旧备份文件失败: {e}")
+                    
+        # 执行备份
+        # 备份data目录
+        data_backup_path = os.path.join(backup_path, 'data')
+        if os.path.exists(data_dir):
+            try:
+                shutil.copytree(data_dir, data_backup_path)
+                print("✓ 数据目录备份成功")
+            except Exception as e:
+                print(f"✗ 数据目录备份失败: {e}")
+                return False
+                
+        print("\n备份完成！备份文件保存在:", backup_path)
+        return True
+    except Exception as e:
+        print(f"备份过程出错: {e}")
+        return False
+
+def restore_backup():
+    """恢复备份"""
+    try:
+        backup_path = get_backup_path()
+        if not os.path.exists(backup_path):
+            print("未找到备份文件")
+            return False
+            
+        source_path = os.path.dirname(os.path.abspath(__file__))
+        data_dir = os.path.join(source_path, 'data')
+        
+        # 恢复data目录
+        data_backup_path = os.path.join(backup_path, 'data')
+        if os.path.exists(data_backup_path):
+            # 如果目标目录存在，先删除
+            if os.path.exists(data_dir):
+                try:
+                    shutil.rmtree(data_dir)
+                except Exception as e:
+                    print(f"删除旧数据目录失败: {e}")
+                    return False
+            
+            try:
+                shutil.copytree(data_backup_path, data_dir)
+                print("✓ 数据目录恢复成功")
+            except Exception as e:
+                print(f"✗ 数据目录恢复失败: {e}")
+                return False
+        else:
+            print("未找到数据目录备份")
+            return False
+            
+        print("\n恢复完成！")
+        return True
+    except Exception as e:
+        print(f"恢复过程出错: {e}")
+        return False
+
+# 初始化并运行配置检查器
+config_checker = ConfigChecker()
+config_check_result = config_checker.perform_check(config.config_path, config.config)
+
+# 根据检查结果创建目录或退出
+if config_check_result:
+    config.create_directories()  # 创建必要的目录
+else:
+    print("\n警告：配置检查未完全通过，建议检查配置文件或重新生成配置文件。")
+    choice = input("是否继续运行程序？(y/n): ")
+    if choice.lower() != 'y':
+        print("程序退出。")
+        sys.exit(1)
+    config.create_directories()  # 用户选择继续时也创建目录
+
+# 使用Config实例中的路径
+script_dir = config.script_dir
+data_dir = config.data_dir
+bookstore_dir = config.bookstore_dir
 record_path = os.path.join(data_dir, 'record.json')
-config_path = os.path.join(data_dir, 'config.json')
+config_path = config.config_path
 
-# 打印程序信息
+a = """
+███████╗ █████╗ ███╗   ██╗ ██████╗ ██╗███████╗    ██████╗ ██╗     
+██╔════╝██╔══██╗████╗  ██║██╔═══██╗██║██╔════╝    ██╔══██╗██║     
+█████╗  ███████║██╔██╗ ██║██║   ██║██║█████╗      ██║  ██║██║     
+██╔══╝  ██╔══██║██║╚██╗██║██║▄▄ ██║██║██╔══╝      ██║  ██║██║     
+██║     ██║  ██║██║ ╚████║╚██████╔╝██║███████╗    ██████╔╝███████╗
+╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝ ╚══▀▀═╝ ╚═╝╚══════╝    ╚═════╝ ╚══════╝
+"""
+
+print(a)
 print('本程序完全免费。\nGithub: https://github.com/ying-ck/fanqienovel-downloader\n作者：Yck & qxqycb')
 
-config_path = os.path.join(data_dir, 'config.json')
-reset = {'kg': 2, 'kgf': '　', 'delay': [50, 150], 'save_path': '', 'save_mode': 1, 'space_mode': 'halfwidth', 'xc': 1, "enable_chapter_numbering": False}
-if not os.path.exists(config_path):
-    if os.path.exists('config.json'):
-        os.replace('config.json', config_path)
-    else:
-        config = reset
-        with open(config_path, 'w', encoding='UTF-8') as f:
-            json.dump(reset, f)
+# 检查备份
+backup_path = get_backup_path()
+if os.path.exists(backup_path) and config['auto_backup']:
+    choice = input("检测到备份文件，是否恢复？1.恢复  2.跳过：")
+    if choice == '1':
+        if restore_backup():
+            print("备份恢复成功！")
+        else:
+            print("备份恢复失败，将使用默认配置。")
+    elif choice != '2':
+        print("输入无效，跳过恢复")
+elif not config['auto_backup']:
+    print("自动备份功能已关闭")
 else:
-    with open(config_path, 'r', encoding='UTF-8') as f:
-        config = json.load(f)
-for i in reset:
-    if not i in config:
-        config[i] = reset[i]
+    print("未检测到备份文件")
 
-record_path = os.path.join(data_dir, 'record.json')
-if not os.path.exists(record_path):
-    if os.path.exists('record.json'):
-        os.replace('record.json', record_path)
-    else:
-        with open(record_path, 'w', encoding='UTF-8') as f:
-            json.dump([], f)
+# 初始化网络管理器并检测网络状态
+print('\n正在检测网络状态...')
+network_manager = NetworkManager()
+network_manager.display_network_status()
+if network_manager.check_network_status() < 30:
+    print('警告：当前网络状况较差，可能会影响下载速度和稳定性')
+elif network_manager.check_network_status() < 70:
+    print('提示：当前网络状况一般，建议保持默认下载线程数')
 
+# 获取cookie
 print('正在获取cookie')
 cookie_path = os.path.join(data_dir, 'cookie.json')
 tzj = int(random.choice(list(down_zj(7143038691944959011)[1].values())[21:]))
-tmod = 0
+cookie_loaded = False
+
 if os.path.exists(cookie_path):
-    with open(cookie_path, 'r', encoding='UTF-8') as f:
-        cookie = json.load(f)
-    tmod = 1
-if tmod == 0 or get_cookie(tzj, cookie) == 'err':
-    get_cookie(tzj)
-print('成功')
+    try:
+        with open(cookie_path, 'r', encoding='UTF-8') as f:
+            cookie = json.load(f)
+        if get_cookie(tzj, cookie) == 's':
+            cookie_loaded = True
+            print('成功')
+    except Exception as e:
+        print(f"加载cookie失败: {e}")
 
-backup_folder_path = 'C:\\Users\\Administrator\\fanqie_down_backup'
-
-if os.path.exists(backup_folder_path):
-    choice = input("检测到备份文件夹，是否使用备份数据？1.使用备份  2.跳过：")
-    if choice == '1':
-        if os.path.isdir(backup_folder_path):
-            source_folder_path = os.path.dirname(os.path.abspath(__file__))
-            for item in os.listdir(backup_folder_path):
-                source_item_path = os.path.join(backup_folder_path, item)
-                target_item_path = os.path.join(source_folder_path, item)
-                if os.path.isfile(source_item_path):
-                    if os.path.exists(target_item_path):
-                        os.remove(target_item_path)
-                    shutil.copy2(source_item_path, target_item_path)
-                elif os.path.isdir(source_item_path):
-                    if os.path.exists(target_item_path):
-                        shutil.rmtree(target_item_path)
-                    shutil.copytree(source_item_path, target_item_path)
-        else:
-            print("备份文件夹不存在，无法使用备份数据。")
-    elif choice != '2':
-        print("输入无效，请重新运行程序并正确输入。")
-else:
-    print("程序还未备份")
-
-def perform_backup():
-    if os.path.isdir(backup_folder_path):
-        for item in os.listdir(backup_folder_path):
-            item_path = os.path.join(backup_folder_path, item)
-            if os.path.isfile(item_path):
-                os.remove(item_path)
-            elif os.path.isdir(item_path):
-                shutil.rmtree(item_path)
+if not cookie_loaded:
+    if get_cookie(tzj) == 's':
+        print('成功')
     else:
-        os.makedirs(backup_folder_path)
-    source_folder_path = os.path.dirname(os.path.abspath(__file__))
-    for item in os.listdir(source_folder_path):
-        source_item_path = os.path.join(source_folder_path, item)
-        target_item_path = os.path.join(backup_folder_path, item)
-        if os.path.isfile(source_item_path) and os.path.basename(__file__) != item:
-            shutil.copy2(source_item_path, target_item_path)
-        elif os.path.isdir(source_item_path) and os.path.basename(__file__) != item and item != 'backup':
-            shutil.copytree(source_item_path, target_item_path)
+        print('获取cookie失败，请检查网络连接')
+        sys.exit(1)
+
+async def text_to_speech(text, output_file, speaker='zh-CN-XiaoxiaoNeural'):
+    try:
+        communicate = edge_tts.Communicate(text, speaker)
+        await communicate.save(output_file)
+        return True
+    except Exception as e:
+        print(f"语音合成出错: {str(e)}")
+        return False
+
+async def process_segment(text, output_file):
+    try:
+        await text_to_speech(text, output_file)
+        return True
+    except Exception as e:
+        print(f"语音合成出错: {str(e)}")
+        return False
+
+async def process_chapter(chapter_title, content, audio_dir):
+    print(f"正在处理章节: {chapter_title}")
+    try:
+        # 将内容分段
+        segments = content.split('\n')
+        segments = [seg.strip() for seg in segments if seg.strip()]
+        
+        chapter_dir = os.path.join(audio_dir, sanitize_filename(chapter_title))
+        if not os.path.exists(chapter_dir):
+            os.makedirs(chapter_dir)
+        
+        tasks = []
+        for i, segment in enumerate(segments):
+            output_file = os.path.join(chapter_dir, f"{i+1}.mp3")
+            if not os.path.exists(output_file):
+                tasks.append(process_segment(segment, output_file))
+        
+        if tasks:
+            results = await asyncio.gather(*tasks)
+            success = all(results)
+        else:
+            success = True
+        
+        if success:
+            try:
+                # 合并音频文件
+                import pydub
+                combined = pydub.AudioSegment.empty()
+                for i in range(len(segments)):
+                    mp3_file = os.path.join(chapter_dir, f"{i+1}.mp3")
+                    if os.path.exists(mp3_file):
+                        audio = pydub.AudioSegment.from_mp3(mp3_file)
+                        combined += audio
+                
+                # 保存合并后的文件
+                output_file = os.path.join(audio_dir, f"{sanitize_filename(chapter_title)}.mp3")
+                combined.export(output_file, format="mp3")
+                
+                # 删除临时文件夹
+                shutil.rmtree(chapter_dir)
+                return True
+            except Exception as e:
+                print(f"合并音频文件时出错: {str(e)}")
+                return False
+    except Exception as e:
+        print(f"处理章节 {chapter_title} 时出错: {str(e)}")
+        return False
+    return False
+
+def export_audiobook(book_id, chapter_range=""):
+    if not AUDIO_SUPPORT:
+        print("未安装edge-tts,无法使用语音合成功能")
+        print("请使用pip install edge-tts安装")
+        return
+    
+    try:
+        import pydub
+    except ImportError:
+        print("未安装pydub,无法使用音频处理功能")
+        print("请使用pip install pydub安装")
+        return
+        
+    try:
+        name, chapters, zt = down_zj(book_id)
+        if name == 'err':
+            print("获取章节信息失败")
+            return
+            
+        safe_name = sanitize_filename(name + chapter_range)
+        audio_dir = os.path.join(script_dir, f"{safe_name}_audio")
+        if not os.path.exists(audio_dir):
+            os.makedirs(audio_dir)
+            
+        print(f"\n开始下载《{name}》的有声版本")
+        
+        async def process_all_chapters():
+            tasks = []
+            for chapter_title, chapter_id in chapters.items():
+                content, _ = down_text(chapter_id)
+                if content and content != 'err':
+                    tasks.append(process_chapter(chapter_title, content, audio_dir))
+                time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
+            
+            if tasks:
+                results = await asyncio.gather(*tasks)
+                success_count = sum(1 for r in results if r)
+                print(f"\n处理完成,成功转换{success_count}/{len(tasks)}章")
+        
+        try:
+            asyncio.run(process_all_chapters())
+        except KeyboardInterrupt:
+            print("\n用户中断处理")
+        except Exception as e:
+            print(f"\n处理过程中出错: {str(e)}")
+            
+    except Exception as e:
+        print(f"导出有声书时出错: {str(e)}")
+        return
 
 # 主循环
 while True:
@@ -1114,6 +1834,8 @@ while True:
 5. 备份
 6. 生成下载清单文件
 7. 退出
+8. 导出有声书
+9. 程序自检
 ''')
 
     inp = input()
@@ -1131,10 +1853,48 @@ while True:
             json.dump(new_records, f)
         print('更新完成')
 
+    elif inp == '9':
+        print("\n开始执行程序自检...")
+        check_results = config.self_check()
+        
+        # 打印检查结果
+        categories = {
+            'runtime_env': '运行环境检查',
+            'network': '网络连接检查',
+            'files_and_dirs': '文件和目录检查',
+            'permissions': '权限检查',
+            'config': '配置文件检查'
+        }
+        
+        all_passed = True
+        for category, title in categories.items():
+            result = check_results[category]
+            status = "通过" if result['status'] else "失败"
+            print(f"\n{title} - {status}")
+            for detail in result['details']:
+                print(f"  {detail}")
+            if not result['status']:
+                all_passed = False
+        
+        if all_passed:
+            print("\n✓ 所有检查项目通过！程序运行环境正常。")
+        else:
+            print("\n✗ 检查发现问题，请查看上述详细信息并解决相关问题。")
+            
+        input("\n按Enter键继续...")
+
+    elif inp == '8':
+        book_id = input("请输入书籍ID或链接：")
+        if str(book_id)[:4] == 'http':
+            book_id = book_id.split('?')[0].split('/')[-1]
+        try:
+            book_id = int(book_id)
+            export_audiobook(book_id)
+        except ValueError:
+            print("请输入有效的书籍ID")
 
     elif inp == '4':
-        print(
-            '请选择项目：1.正文段首占位符 2.章节下载间隔延迟 3.小说保存路径 4.小说保存方式 5.设置下载线程数 6.章节排序 7.指定章节下载')
+        print('请选择项目：1.正文段首占位符 2.章节下载间隔延迟 3.小说保存路径 4.小说保存方式 5.设置下载线程数 6.章节排序 7.指定章节下载 8.自动备份设置')
         inp2 = input()
         if inp2 == '1':
             tmp = input('请输入正文段首占位符(当前为"%s")(直接Enter不更改)：' % config['kgf'])
@@ -1153,8 +1913,7 @@ while True:
             config['save_path'] = select_save_directory()
 
         elif inp2 == '4':
-            print(
-                '请选择：1.保存为单个 txt 2.分章保存 3.保存为 epub 4.保存为 HTML 网页格式 5.保存为 LaTeX')
+            print('请选择：1.保存为单个 txt 2.分章保存 3.保存为 epub 4.保存为 HTML 网页格式 5.保存为 LaTeX')
             inp3 = input()
             if inp3 == '1':
                 config['save_mode'] = 1
@@ -1230,11 +1989,16 @@ while True:
             except ValueError:
                 print("请输入有效的数字！")
                 continue
+        elif inp2 == '8':
+            print(f"当前自动备份状态：{'开启' if config['auto_backup'] else '关闭'}")
+            config['auto_backup'] = input("是否开启自动备份功能？（1.开启/2.关闭）：") == '1'
+            if not config['auto_backup']:
+                print("自动备份功能已关闭，您的设置和下载记录将不会自动备份")
+            else:
+                print("自动备份功能已开启，程序将自动备份您的设置和下载记录")
         else:
             print('请正确输入!')
             continue
-        with open(config_path, 'w', encoding='UTF-8') as f:
-            json.dump(config, f)
         print('设置完成')
 
     elif inp == '2':
