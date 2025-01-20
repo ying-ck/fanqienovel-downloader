@@ -12,7 +12,6 @@ import threading
 import asyncio
 import sys
 
-# Add edge-tts support check
 try:
     import edge_tts
     AUDIO_SUPPORT = True
@@ -77,7 +76,6 @@ class NetworkManager:
             latency = time.time() - start_time
             
             if response.status_code == 200:
-                # 基于延迟计算网络评分
                 if latency < 0.5:
                     score = 100
                 elif latency < 1:
@@ -151,7 +149,6 @@ class ConfigChecker:
         }
         
     def check_config_file(self, config_path):
-        """检查配置文件是否存在且可访问"""
         try:
             self.check_results['config_file'] = os.path.exists(config_path)
             return self.check_results['config_file']
@@ -160,7 +157,6 @@ class ConfigChecker:
             return False
             
     def check_config_format(self, config):
-        """检查配置文件格式是否正确"""
         try:
             if isinstance(config, dict):
                 self.check_results['config_format'] = True
@@ -170,7 +166,6 @@ class ConfigChecker:
             return False
             
     def check_required_fields(self, config):
-        """检查必需字段是否存在且类型正确"""
         try:
             for field, field_type in self.required_fields.items():
                 if field not in config or not isinstance(config[field], field_type):
@@ -181,7 +176,6 @@ class ConfigChecker:
             return False
             
     def check_value_ranges(self, config):
-        """检查数值是否在有效范围内"""
         try:
             for field, (min_val, max_val) in self.value_ranges.items():
                 if field in config:
@@ -194,7 +188,6 @@ class ConfigChecker:
             return False
             
     def check_directories(self, config):
-        """检查必需的目录是否存在且可访问"""
         try:
             required_dirs = ['data', 'bookstore']
             for dir_name in required_dirs:
@@ -207,7 +200,6 @@ class ConfigChecker:
             return False
             
     def perform_check(self, config_path, config):
-        """执行所有检查并返回结果"""
         # 检查是否是首次运行（data文件夹不存在）
         data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
         if not os.path.exists(data_dir):
@@ -1536,7 +1528,6 @@ class Config:
 config = Config()
 
 def get_backup_path():
-    """获取备份路径"""
     if platform.system() == "Windows":
         backup_path = os.path.join(os.environ.get('APPDATA', ''), 'fanqie_downloader_backup')
     else:
@@ -1544,17 +1535,14 @@ def get_backup_path():
     return backup_path
 
 def perform_backup():
-    """执行备份操作"""
     try:
         backup_path = get_backup_path()
         if not os.path.exists(backup_path):
             os.makedirs(backup_path)
             
-        # 获取源文件夹路径
         source_path = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(source_path, 'data')
         
-        # 如果data目录不存在，创建它
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
             
@@ -1570,15 +1558,14 @@ def perform_backup():
                 except Exception as e:
                     print(f"清理旧备份文件失败: {e}")
                     
-        # 执行备份
-        # 备份data目录
+
         data_backup_path = os.path.join(backup_path, 'data')
         if os.path.exists(data_dir):
             try:
                 shutil.copytree(data_dir, data_backup_path)
-                print("✓ 数据目录备份成功")
+                print("数据目录备份成功")
             except Exception as e:
-                print(f"✗ 数据目录备份失败: {e}")
+                print(f"数据目录备份失败: {e}")
                 return False
                 
         print("\n备份完成！备份文件保存在:", backup_path)
@@ -1588,7 +1575,6 @@ def perform_backup():
         return False
 
 def restore_backup():
-    """恢复备份"""
     try:
         backup_path = get_backup_path()
         if not os.path.exists(backup_path):
@@ -1629,7 +1615,6 @@ def restore_backup():
 config_checker = ConfigChecker()
 config_check_result = config_checker.perform_check(config.config_path, config.config)
 
-# 根据检查结果创建目录或退出
 if config_check_result:
     config.create_directories()  # 创建必要的目录
 else:
