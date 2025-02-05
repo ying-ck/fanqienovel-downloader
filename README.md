@@ -133,7 +133,7 @@ deactivate
 ```
 #### 二次使用
 ```bash
-# 进入fanqienovel-downloader-1.1.18/src/data
+# 进入fanqienovel-downloader-1.1.18/src
 cd fanqienovel-downloader
 cd src 
 # 激活虚拟环境
