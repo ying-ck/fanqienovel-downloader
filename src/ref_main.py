@@ -11,22 +11,17 @@ import concurrent.futures
 import threading
 import asyncio
 import sys
-
-try:
-    import edge_tts
-    AUDIO_SUPPORT = True
-except ImportError:
-    AUDIO_SUPPORT = False
+import re
+import zipfile
+import qrcode
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+import threading
+import socket
+from flask import Flask, send_file, render_template_string, request, redirect, url_for
+from io import BytesIO
 
 class NetworkManager:
     def __init__(self):
-        self.min_threads = 1
-        self.max_threads = 10
-        self.current_threads = 1
-        self.network_check_interval = 30
-        self.last_check_time = 0
-        self.retry_delays = [1, 2, 4, 8, 16]
-        self.last_network_score = 0
         self.session = req.Session()
         self.session.mount('http://', req.adapters.HTTPAdapter(max_retries=3))
         self.session.mount('https://', req.adapters.HTTPAdapter(max_retries=3))
@@ -37,6 +32,9 @@ class NetworkManager:
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
             'Connection': 'keep-alive'
         })
+        
+        self.cookie_status = {}
+        self.cookie_lock = threading.Lock()
         
     def get_session(self):
         return self.session
@@ -69,52 +67,30 @@ class NetworkManager:
                 
         raise req.RequestException(f"请求失败,已重试{max_retries}次")
         
-    def check_network_status(self):
-        try:
-            start_time = time.time()
-            response = self.make_request('https://fanqienovel.com', timeout=5)
-            latency = time.time() - start_time
-            
-            if response.status_code == 200:
-                if latency < 0.5:
-                    score = 100
-                elif latency < 1:
-                    score = 80
-                elif latency < 2:
-                    score = 60
-                elif latency < 3:
-                    score = 40
-                else:
-                    score = 20
-                self.last_network_score = score
-                return score
-            return 0
-        except:
-            self.last_network_score = 0
-            return 0
-            
-    def display_network_status(self):
-        score = self.check_network_status()
-        print(f"网络状态: {'良好' if score >= 60 else '一般' if score >= 40 else '较差'}")
-        
     def close(self):
         try:
             self.session.close()
         except:
             pass
         
-    def adjust_threads(self):
-        current_time = time.time()
-        if current_time - self.last_check_time >= self.network_check_interval:
-            network_score = self.check_network_status()
-            self.last_check_time = current_time
-            
-            if network_score >= 80:
-                self.current_threads = min(self.current_threads + 1, self.max_threads)
-            elif network_score <= 40:
-                self.current_threads = max(self.current_threads - 1, self.min_threads)
-            
-            return self.current_threads
+    def mark_cookie_bad(self, cookie):
+        with self.cookie_lock:
+            if cookie in self.cookie_status:
+                self.cookie_status[cookie]['failure_count'] += 1
+                self.cookie_status[cookie]['last_used'] = time.time()
+            else:
+                self.cookie_status[cookie] = {
+                    'failure_count': 1,
+                    'last_used': time.time()
+                }
+                
+    def get_good_cookie(self):
+        with self.cookie_lock:
+            sorted_cookies = sorted(
+                [(k, v) for k, v in self.cookie_status.items()],
+                key=lambda x: (x[1]['failure_count'], x[1]['last_used'])
+            )
+            return sorted_cookies[0][0] if sorted_cookies else None
 
 class ConfigChecker:
     def __init__(self):
@@ -200,7 +176,6 @@ class ConfigChecker:
             return False
             
     def perform_check(self, config_path, config):
-        # 检查是否是首次运行（data文件夹不存在）
         data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
         if not os.path.exists(data_dir):
             print("\n首次运行程序，跳过配置检查...")
@@ -242,25 +217,7 @@ headers_lib = [
 
 headers = headers_lib[random.randint(0, len(headers_lib) - 1)]
 
-zj = {}  # 添加全局变量声明
-
-def get_cookie(zj, t=0):
-    global cookie
-    bas = 1000000000000000000
-    if t == 0:
-        for i in range(random.randint(bas * 6, bas * 8), bas * 9):
-            time.sleep(random.randint(50, 150) / 1000)
-            cookie = 'novel_web_id=' + str(i)
-            if len(down_text(zj, 2)) > 200:
-                with open(cookie_path, 'w', encoding='UTF-8') as f:
-                    json.dump(cookie, f)
-                return 's'
-    else:
-        cookie = t
-        if len(down_text(zj, 2)) > 200:
-            return 's'
-        else:
-            return 'err'
+zj = {}
 
 def down_zj(it):
     an = {}
@@ -301,99 +258,36 @@ def str_interpreter(n, mode):
     return s
 
 def down_text(it, mod=1):
-    global cookie
-    headers2 = headers.copy()
-    headers2['cookie'] = cookie
-    f = False
-    max_retries = 3
+    max_retries = config.get('max_retries', 3)
     retry_count = 0
+    content = ""
     
     while retry_count < max_retries:
         try:
-            res = req.get('https://fanqienovel.com/reader/' + str(it), 
-                         headers=headers2, 
-                         timeout=10)
-            ele = etree.HTML(res.text)
-
-            n = '\n'.join(ele.xpath('//div[@class="muye-reader-content noselect"]//p/text()'))
-            if not n:
-                n = '\n'.join(ele.xpath('//div[@class="muye-reader-content muye-reader-story-content noselect"]//p/text()'))
-
-            break
+            # 使用新API获取内容
+            api_url = f"http://yuefanqie.jingluo.love/content?item_id={it}"
+            response = network_manager.make_request(api_url)
+            data = response.json()
+            
+            if data.get("code") == 0:
+                content = data.get("data", {}).get("content", "")
+                # 清理HTML标签并保留段落结构
+                content = re.sub(r'<header>.*?</header>', '', content, flags=re.DOTALL)
+                content = re.sub(r'<footer>.*?</footer>', '', content, flags=re.DOTALL)
+                content = re.sub(r'</?article>', '', content)
+                content = re.sub(r'<p idx="\d+">', '\n', content)
+                content = re.sub(r'</p>', '\n', content)
+                content = re.sub(r'<[^>]+>', '', content)
+                content = re.sub(r'\n{3,}', '\n\n', content).strip()
+                break
         except Exception as e:
+            print(f"请求失败: {str(e)}, 重试第{retry_count + 1}次...")
             retry_count += 1
-            if mod == 2:
-                return 'err'
-            f = True
-            print(f"下载出错,正在重试({retry_count}/{max_retries}): {str(e)}")
-            time.sleep(0.4 * retry_count)
+            time.sleep(1 * retry_count)
     
-    if retry_count >= max_retries:
-        print("达到最大重试次数,下载失败")
-        return ('err', True) if mod == 1 else 'err'
     if mod == 1:
-        s = str_interpreter(n, 0)
-    else:
-        s = n
-    try:
-        if mod == 1:
-            return s, f
-        else:
-            return s
-    except:
-        s = s[6:]
-        tmp = 1
-        a = ''
-        for i in s:
-            if i == '<':
-                tmp += 1
-            elif i == '>':
-                tmp -= 1
-            elif tmp == 0:
-                a += i
-            elif tmp == 1 and i == 'p':
-                a = (a + '\n').replace('\n\n', '\n')
-        return a, f
-
-def down_text_old(it, mod=1):
-    global cookie
-    headers2 = headers
-    headers2['cookie'] = cookie
-    f = False
-    while True:
-        try:
-            res = req.get('https://fanqienovel.com/api/reader/full?itemId=' + str(it), headers=headers2)
-            n = json.loads(res.text)['data']['chapterData']['content']
-            break
-        except:
-            if mod == 2:
-                return ('err')
-            f = True
-            time.sleep(0.4)
-    if mod == 1:
-        s = str_interpreter(n, 0)
-    else:
-        s = n
-    try:
-        if mod == 1:
-            return '\n'.join(etree.HTML(s).xpath('//p/text()')), f
-        else:
-            return '\n'.join(etree.HTML(s).xpath('//p/text()'))
-    except:
-        s = s[6:]
-        tmp = 1
-        a = ''
-        for i in s:
-            if i == '<':
-                tmp += 1
-            elif i == '>':
-                tmp -= 1
-            elif tmp == 0:
-                a += i
-            elif tmp == 1 and i == 'p':
-                a = (a + '\n').replace('\n\n', '\n')
-        return a, f
-
+        return content, False  # 第二个参数保持原有逻辑但不再使用
+    return content
 
 def sanitize_filename(filename):
     illegal_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
@@ -417,11 +311,6 @@ def download_chapter(chapter_title, chapter_id, ozj):
         tqdm.write(f'下载 {chapter_title}')
         zj[chapter_title], st = down_text(chapter_id)
         time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
-        if st:
-            tcs += 1
-            if tcs > 7:
-                tcs = 0
-                get_cookie(tzj)
         cs += 1
         if cs >= 5:
             cs = 0
@@ -450,7 +339,6 @@ def down_book(it, chapter_range=""):
     cs = 0
     tcs = 0
     tasks = []
-    # 使用配置的线程数创建线程池
     if 'xc' in config:
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=config['xc'])
     else:
@@ -465,20 +353,16 @@ def down_book(it, chapter_range=""):
     with open(book_json_path, 'w', encoding='UTF-8') as json_file:
         json.dump(zj, json_file, ensure_ascii=False)
 
-    # 获取作者信息和内容简介
     url = f'https://fanqienovel.com/page/{it}'
     response = req.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    # 获取小说名
     name_element = soup.find('h1')
     if name_element:
         name = name_element.text
-    # 获取作者信息
     author_name_element = soup.find('div', class_='author-name')
     author_name = None
     if author_name_element:
         author_name = author_name_element.find('span', class_='author-name-text').text
-    # 获取内容简介
     description = None
     description_element = soup.find('div', class_='page-abstract-content')
     if description_element:
@@ -527,10 +411,9 @@ def download_chapter_epub(chapter_title, chapter_id):
     try:
         tqdm.write(f'下载 {chapter_title}')
         chapter_content, _ = down_text(chapter_id)
-        if not chapter_content:  # 检查内容是否为空
+        if not chapter_content:
             return chapter_title, None
         
-        # 处理章节内容，替换换行符为HTML段落标签
         formatted_content = '</p><p>'.join(filter(None, chapter_content.split('\n')))
         time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
         
@@ -550,24 +433,18 @@ def down_book_epub(it, chapter_range=""):
     print(f'\n开始下载《{name}》，状态"{zt}"')
     book_json_path = os.path.join(bookstore_dir, safe_name + '.json')
 
-    # 获取作者信息和内容简介
     url = f'https://fanqienovel.com/page/{it}'
     response = req.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    
-    # 获取作者信息
     author_name_element = soup.find('div', class_='author-name')
     author_name = None
     if author_name_element:
         author_name = author_name_element.find('span', class_='author-name-text').text
-    
-    # 获取内容简介
     description = None
     description_element = soup.find('div', class_='page-abstract-content')
     if description_element:
         description = description_element.find('p').text
 
-    # 创建epub书籍
     book = epub.EpubBook()
     book.set_identifier(f'fanqie-{it}')
     book.set_title(name)
@@ -575,7 +452,6 @@ def down_book_epub(it, chapter_range=""):
     if author_name:
         book.add_author(author_name)
     
-    # 添加CSS样式
     style = '''
         @namespace epub "http://www.idpf.org/2007/ops";
         body { font-family: "Noto Serif CJK SC", SimSun, serif; }
@@ -590,13 +466,11 @@ def down_book_epub(it, chapter_range=""):
     )
     book.add_item(nav_css)
 
-    # 添加简介章节
     if description:
         intro = epub.EpubHtml(title='简介', file_name='intro.xhtml')
         intro.content = f'<h1>简介</h1><p>{description}</p>'
         book.add_item(intro)
 
-    # 下载章节内容
     chapters = []
     cs = 0
     tcs = 0
@@ -609,38 +483,31 @@ def down_book_epub(it, chapter_range=""):
     
     pbar = tqdm(total=len(zj))
     
-    # 保持章节顺序
     ordered_chapters = list(zj.items())
     for chapter_title, chapter_id in ordered_chapters:
         tasks.append(executor.submit(download_chapter_epub, chapter_title, chapter_id))
     
-    # 等待所有任务完成并按顺序处理结果
     downloaded_chapters = {}
     for future in concurrent.futures.as_completed(tasks):
         chapter_title, chapter_content = future.result()
-        if chapter_content:  # 确保内容不为空
+        if chapter_content:
             downloaded_chapters[chapter_title] = chapter_content
         pbar.update(1)
     
-    # 按原始顺序创建章节
     for chapter_title, _ in ordered_chapters:
         if chapter_title in downloaded_chapters:
             chapter_content = downloaded_chapters[chapter_title]
-            # 创建章节
             c = epub.EpubHtml(title=chapter_title, file_name=f'chapter_{len(chapters)+1}.xhtml')
             c.content = f'<h1>{chapter_title}</h1><p>{chapter_content}</p>'
             book.add_item(c)
             chapters.append(c)
 
-    # 添加目录
     book.toc = [(epub.Section('目录'), chapters)]
     book.spine = ['nav'] + chapters if not description else ['nav', intro] + chapters
     
-    # 添加默认NCX和Nav文件
     book.add_item(epub.EpubNcx())
     book.add_item(epub.EpubNav())
 
-    # 生成epub文件
     if not config['save_path']:
         config['save_path'] = script_dir
     epub.write_epub(os.path.join(config['save_path'], f'{safe_name}.epub'), book)
@@ -667,26 +534,21 @@ def down_book_html(it, chapter_range=""):
         with open(book_json_path, 'r', encoding='UTF-8') as json_file:
             existing_json_content = json.load(json_file)
 
-    # 获取作者信息和内容简介
     url = f'https://fanqienovel.com/page/{it}'
     response = req.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    # 获取小说名
     name_element = soup.find('h1')
     if name_element:
         name = name_element.text
-    # 获取作者信息
     author_name_element = soup.find('div', class_='author-name')
     author_name = None
     if author_name_element:
         author_name = author_name_element.find('span', class_='author-name-text').text
-    # 获取内容简介
     description = None
     description_element = soup.find('div', class_='page-abstract-content')
     if description_element:
         description = description_element.find('p').text
 
-    # 生成目录 HTML 文件内容，添加 CSS 样式和响应式设计的 meta 标签，并包含小说名、作者和内容简介
     toc_content = f"""
 <html>
 <head>
@@ -1236,7 +1098,7 @@ def book2down(inp):
     except ValueError:
         return 'err'
 
-
+# 首先定义 Config 类
 class Config:
     def __init__(self):
         # 获取程序的基础路径
@@ -1323,7 +1185,6 @@ class Config:
         """执行程序自检"""
         check_results = {
             'runtime_env': {'status': True, 'details': []},
-            'network': {'status': True, 'details': []},
             'files_and_dirs': {'status': True, 'details': []},
             'permissions': {'status': True, 'details': []},
             'config': {'status': True, 'details': []}
@@ -1368,18 +1229,6 @@ class Config:
         except Exception as e:
             check_results['runtime_env']['status'] = False
             check_results['runtime_env']['details'].append(f"✗ 运行环境检查出错: {str(e)}")
-        
-        # 检查网络连接
-        try:
-            response = req.get('https://fanqienovel.com', timeout=5)
-            if response.status_code == 200:
-                check_results['network']['details'].append("✓ 网站连接正常")
-            else:
-                check_results['network']['status'] = False
-                check_results['network']['details'].append(f"✗ 网站返回状态码: {response.status_code}")
-        except Exception as e:
-            check_results['network']['status'] = False
-            check_results['network']['details'].append(f"✗ 网络连接失败: {str(e)}")
         
         # 检查文件和目录
         try:
@@ -1527,7 +1376,281 @@ class Config:
 # 初始化配置
 config = Config()
 
+# 然后定义 ShareManager 类
+class ShareManager:
+    def __init__(self):
+        self.share_records = {}
+        self.share_base_dir = os.path.join(config.data_dir, "shared_books")
+        self.host = self._get_local_ip()
+        self.port = 8000
+        self.app = Flask(__name__)
+        self.server = None
+        self.running = False
+        os.makedirs(self.share_base_dir, exist_ok=True)
+        
+        # 添加会话状态存储
+        self.sessions = {}
+        
+        # 修改路由
+        @self.app.route('/')
+        def index():
+            return self._generate_index_page()
+            
+        @self.app.route('/download/<filename>')
+        def download(filename):
+            # 检查是否需要密码
+            share_id = None
+            for sid, record in self.share_records.items():
+                if record['filename'] == filename:
+                    share_id = sid
+                    break
+                    
+            if share_id and self.share_records[share_id].get('password'):
+                # 检查会话
+                client_ip = request.remote_addr
+                if not self.sessions.get(f"{client_ip}_{filename}"):
+                    return self._generate_password_page(filename)
+                    
+            try:
+                return send_file(
+                    os.path.join(self.share_base_dir, filename),
+                    as_attachment=True
+                )
+            except Exception as e:
+                return f"下载失败: {str(e)}", 404
+                
+        @self.app.route('/verify/<filename>', methods=['POST'])
+        def verify_password(filename):
+            password = request.form.get('password')
+            share_id = None
+            for sid, record in self.share_records.items():
+                if record['filename'] == filename:
+                    share_id = sid
+                    break
+                    
+            if share_id and password == self.share_records[share_id]['password']:
+                # 记录会话
+                client_ip = request.remote_addr
+                self.sessions[f"{client_ip}_{filename}"] = True
+                return redirect(url_for('download', filename=filename))
+            else:
+                return "密码错误", 401
+
+        @self.app.route('/qrcode/<filename>')
+        def qrcode(filename):
+            # 生成下载链接的二维码
+            download_url = f"http://{self.host}:{self.port}/download/{filename}"
+            qr_buffer = self._generate_qrcode(download_url)
+            return send_file(qr_buffer, mimetype='image/png')
+
+    def _generate_password_page(self, filename):
+        """生成密码验证页面"""
+        template = '''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>访问验证</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
+                .password-form {
+                    max-width: 300px;
+                    margin: 50px auto;
+                    padding: 20px;
+                    border: 1px solid #ddd;
+                    border-radius: 5px;
+                }
+                input[type="password"] {
+                    width: 100%;
+                    padding: 8px;
+                    margin: 10px 0;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                }
+                .submit-btn {
+                    background-color: #4CAF50;
+                    color: white;
+                    padding: 10px 20px;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                }
+                .submit-btn:hover {
+                    background-color: #45a049;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="password-form">
+                <h2>请输入访问密码</h2>
+                <form action="/verify/{{ filename }}" method="post">
+                    <input type="password" name="password" placeholder="请输入密码" required>
+                    <button type="submit" class="submit-btn">确认</button>
+                </form>
+            </div>
+        </body>
+        </html>
+        '''
+        return render_template_string(template, filename=filename)
+
+    def _generate_index_page(self):
+        template = '''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>小说分享</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                .book { border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; }
+                .book:hover { background-color: #f5f5f5; }
+                .download-btn { 
+                    background-color: #4CAF50; 
+                    color: white; 
+                    padding: 10px 20px; 
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    text-decoration: none;
+                    display: inline-block;
+                }
+                .download-btn:hover { background-color: #45a049; }
+                .lock-icon { color: #666; margin-left: 5px; }
+                .qr-code { margin-top: 10px; }
+            </style>
+        </head>
+        <body>
+            <h1>小说分享</h1>
+            {% for book in books %}
+            <div class="book">
+                <h2>{{ book.name }}</h2>
+                <p>有效期至：{{ book.expire_time }}</p>
+                <a href="/download/{{ book.filename }}" class="download-btn">
+                    下载
+                    {% if book.password %}
+                    <span class="lock-icon">🔒</span>
+                    {% endif %}
+                </a>
+                <div class="qr-code">
+                    <img src="/qrcode/{{ book.filename }}" alt="二维码" width="150">
+                </div>
+            </div>
+            {% endfor %}
+        </body>
+        </html>
+        '''
+        return render_template_string(template, books=self.share_records.values())
+
+    def _generate_qrcode(self, url):
+        """生成二维码图片的字节流"""
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data(url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # 将图片转换为字节流
+        img_buffer = BytesIO()
+        img.save(img_buffer, format='PNG')
+        img_buffer.seek(0)
+        return img_buffer
+
+    def _run_server(self):
+        try:
+            self.running = True
+            self.app.run(host='0.0.0.0', port=self.port, threaded=True)
+        except Exception as e:
+            print(f"启动服务器时出错: {str(e)}")
+            self.running = False
+
+    def start_server(self):
+        if not self.running:
+            print(f"\n分享服务已启动！")
+            print(f"本机访问地址: http://localhost:{self.port}")
+            print(f"局域网访问地址: http://{self.host}:{self.port}")
+            print("\n如果局域网内其他设备无法访问，请检查：")
+            print("1. Windows防火墙是否允许Python/程序访问网络")
+            print("2. 防病毒软件是否拦截了端口访问")
+            print("3. 确保设备都在同一局域网内")
+            print(f"4. 在Windows防火墙中为端口 {self.port} 添加入站规则")
+            print("\n按Ctrl+C可以停止分享服务")
+            
+            import threading
+            self.server = threading.Thread(target=self._run_server)
+            self.server.daemon = True
+            self.server.start()
+
+    def stop_server(self):
+        self.running = False
+        print("\n分享服务已停止")
+
+    def share_book(self, book_id, valid_hours=24, password=None):
+        zip_path = self._pack_book(book_id)
+        if not zip_path:
+            return None
+
+        book_info = down_zj(book_id)
+        if book_info[0] == 'err':
+            return None
+
+        share_id = str(int(time.time()))
+        expire_time = time.time() + valid_hours * 3600
+        filename = os.path.basename(zip_path)
+        
+        self.share_records[share_id] = {
+            "name": book_info[0],
+            "path": zip_path,
+            "filename": filename,
+            "expire_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(expire_time)),
+            "password": password
+        }
+
+        if not self.running:
+            self.start_server()
+            time.sleep(1)  # 等待服务器启动
+
+        return {
+            "url": f"http://{self.host}:{self.port}/download/{filename}",
+            "index_url": f"http://{self.host}:{self.port}",
+            "expire_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(expire_time))
+        }
+
+    def _pack_book(self, book_id):
+        book_info = down_zj(book_id)
+        if book_info[0] == 'err':
+            return None
+        book_name = sanitize_filename(book_info[0])
+        
+        # 如果没有设置保存路径，使用脚本目录
+        save_path = config['save_path'] if config['save_path'] else config.script_dir
+        source_path = os.path.join(save_path, f"{book_name}.txt")
+        
+        # 检查文件是否存在
+        if not os.path.exists(source_path):
+            print(f"找不到小说文件: {source_path}")
+            return None
+        
+        zip_path = os.path.join(self.share_base_dir, f"{book_name}.zip")
+        try:
+            with zipfile.ZipFile(zip_path, 'w') as zipf:
+                zipf.write(source_path, arcname=f"{book_name}.txt")
+            return zip_path
+        except Exception as e:
+            print(f"打包文件时出错: {str(e)}")
+            return None
+
+    def _get_local_ip(self):
+        """获取本机IP地址"""
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(('8.8.8.8', 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except Exception:
+            return '0.0.0.0'
+
 def get_backup_path():
+    """获取备份路径"""
     if platform.system() == "Windows":
         backup_path = os.path.join(os.environ.get('APPDATA', ''), 'fanqie_downloader_backup')
     else:
@@ -1535,14 +1658,17 @@ def get_backup_path():
     return backup_path
 
 def perform_backup():
+    """执行备份操作"""
     try:
         backup_path = get_backup_path()
         if not os.path.exists(backup_path):
             os.makedirs(backup_path)
             
+        # 获取源文件夹路径
         source_path = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(source_path, 'data')
         
+        # 如果data目录不存在，创建它
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
             
@@ -1558,14 +1684,15 @@ def perform_backup():
                 except Exception as e:
                     print(f"清理旧备份文件失败: {e}")
                     
-
+        # 执行备份
+        # 备份data目录
         data_backup_path = os.path.join(backup_path, 'data')
         if os.path.exists(data_dir):
             try:
                 shutil.copytree(data_dir, data_backup_path)
-                print("数据目录备份成功")
+                print("✓ 数据目录备份成功")
             except Exception as e:
-                print(f"数据目录备份失败: {e}")
+                print(f"✗ 数据目录备份失败: {e}")
                 return False
                 
         print("\n备份完成！备份文件保存在:", backup_path)
@@ -1575,6 +1702,7 @@ def perform_backup():
         return False
 
 def restore_backup():
+    """恢复备份"""
     try:
         backup_path = get_backup_path()
         if not os.path.exists(backup_path):
@@ -1615,6 +1743,7 @@ def restore_backup():
 config_checker = ConfigChecker()
 config_check_result = config_checker.perform_check(config.config_path, config.config)
 
+# 根据检查结果创建目录或退出
 if config_check_result:
     config.create_directories()  # 创建必要的目录
 else:
@@ -1661,116 +1790,10 @@ else:
     print("未检测到备份文件")
 
 # 初始化网络管理器并检测网络状态
-print('\n正在检测网络状态...')
+print('\n正在初始化网络连接...')
 network_manager = NetworkManager()
-network_manager.display_network_status()
-if network_manager.check_network_status() < 30:
-    print('警告：当前网络状况较差，可能会影响下载速度和稳定性')
-elif network_manager.check_network_status() < 70:
-    print('提示：当前网络状况一般，建议保持默认下载线程数')
-
-# 获取cookie
-print('正在获取cookie')
-cookie_path = os.path.join(data_dir, 'cookie.json')
-tzj = int(random.choice(list(down_zj(7143038691944959011)[1].values())[21:]))
-cookie_loaded = False
-
-if os.path.exists(cookie_path):
-    try:
-        with open(cookie_path, 'r', encoding='UTF-8') as f:
-            cookie = json.load(f)
-        if get_cookie(tzj, cookie) == 's':
-            cookie_loaded = True
-            print('成功')
-    except Exception as e:
-        print(f"加载cookie失败: {e}")
-
-if not cookie_loaded:
-    if get_cookie(tzj) == 's':
-        print('成功')
-    else:
-        print('获取cookie失败，请检查网络连接')
-        sys.exit(1)
-
-async def text_to_speech(text, output_file, speaker='zh-CN-XiaoxiaoNeural'):
-    try:
-        communicate = edge_tts.Communicate(text, speaker)
-        await communicate.save(output_file)
-        return True
-    except Exception as e:
-        print(f"语音合成出错: {str(e)}")
-        return False
-
-async def process_segment(text, output_file):
-    try:
-        await text_to_speech(text, output_file)
-        return True
-    except Exception as e:
-        print(f"语音合成出错: {str(e)}")
-        return False
-
-async def process_chapter(chapter_title, content, audio_dir):
-    print(f"正在处理章节: {chapter_title}")
-    try:
-        # 将内容分段
-        segments = content.split('\n')
-        segments = [seg.strip() for seg in segments if seg.strip()]
-        
-        chapter_dir = os.path.join(audio_dir, sanitize_filename(chapter_title))
-        if not os.path.exists(chapter_dir):
-            os.makedirs(chapter_dir)
-        
-        tasks = []
-        for i, segment in enumerate(segments):
-            output_file = os.path.join(chapter_dir, f"{i+1}.mp3")
-            if not os.path.exists(output_file):
-                tasks.append(process_segment(segment, output_file))
-        
-        if tasks:
-            results = await asyncio.gather(*tasks)
-            success = all(results)
-        else:
-            success = True
-        
-        if success:
-            try:
-                # 合并音频文件
-                import pydub
-                combined = pydub.AudioSegment.empty()
-                for i in range(len(segments)):
-                    mp3_file = os.path.join(chapter_dir, f"{i+1}.mp3")
-                    if os.path.exists(mp3_file):
-                        audio = pydub.AudioSegment.from_mp3(mp3_file)
-                        combined += audio
-                
-                # 保存合并后的文件
-                output_file = os.path.join(audio_dir, f"{sanitize_filename(chapter_title)}.mp3")
-                combined.export(output_file, format="mp3")
-                
-                # 删除临时文件夹
-                shutil.rmtree(chapter_dir)
-                return True
-            except Exception as e:
-                print(f"合并音频文件时出错: {str(e)}")
-                return False
-    except Exception as e:
-        print(f"处理章节 {chapter_title} 时出错: {str(e)}")
-        return False
-    return False
 
 def export_audiobook(book_id, chapter_range=""):
-    if not AUDIO_SUPPORT:
-        print("未安装edge-tts,无法使用语音合成功能")
-        print("请使用pip install edge-tts安装")
-        return
-    
-    try:
-        import pydub
-    except ImportError:
-        print("未安装pydub,无法使用音频处理功能")
-        print("请使用pip install pydub安装")
-        return
-        
     try:
         name, chapters, zt = down_zj(book_id)
         if name == 'err':
@@ -1782,31 +1805,153 @@ def export_audiobook(book_id, chapter_range=""):
         if not os.path.exists(audio_dir):
             os.makedirs(audio_dir)
             
-        print(f"\n开始下载《{name}》的有声版本")
+        print(f"\n开始获取《{name}》的音频")
         
-        async def process_all_chapters():
-            tasks = []
-            for chapter_title, chapter_id in chapters.items():
-                content, _ = down_text(chapter_id)
-                if content and content != 'err':
-                    tasks.append(process_chapter(chapter_title, content, audio_dir))
-                time.sleep(random.randint(config['delay'][0], config['delay'][1]) / 1000)
-            
-            if tasks:
-                results = await asyncio.gather(*tasks)
-                success_count = sum(1 for r in results if r)
-                print(f"\n处理完成,成功转换{success_count}/{len(tasks)}章")
+        # 获取音频链接的函数
+        def get_audio_url(chapter_id):
+            try:
+                api_url = f"https://reading.snssdk.com/reading/reader/audio/playinfo/?tone_id=1&item_ids={chapter_id}&pv_player=-1&aid=1967"
+                response = req.get(api_url, headers=headers)
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("code") == 0 and data.get("data"):
+                        # 提取main_url
+                        main_url = data["data"][0].get("main_url")
+                        if main_url:
+                            return main_url
+                return None
+            except Exception as e:
+                return None
         
-        try:
-            asyncio.run(process_all_chapters())
-        except KeyboardInterrupt:
-            print("\n用户中断处理")
-        except Exception as e:
-            print(f"\n处理过程中出错: {str(e)}")
+        # 下载音频文件的函数
+        def download_audio(chapter_title, chapter_id):
+            try:
+                audio_url = get_audio_url(chapter_id)
+                if not audio_url:
+                    return False
+                    
+                output_path = os.path.join(audio_dir, f"{sanitize_filename(chapter_title)}.mp3")
+                response = req.get(audio_url, stream=True)
+                response.raise_for_status()
+                
+                with open(output_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                return True
+            except Exception as e:
+                return False
+        
+        # 使用线程池进行并发下载
+        success_count = 0
+        failed_count = 0
+        total_chapters = len(chapters)
+        completed_count = 0
+        
+        print(f"总章节数: {total_chapters}")
+        with tqdm(total=total_chapters, desc="下载进度", unit="章", ncols=100) as pbar:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=config.get('xc', 5)) as executor:
+                # 创建所有下载任务
+                future_to_chapter = {
+                    executor.submit(download_audio, title, cid): title 
+                    for title, cid in chapters.items()
+                }
+                
+                # 处理完成的任务
+                for future in concurrent.futures.as_completed(future_to_chapter):
+                    success = future.result()
+                    if success:
+                        success_count += 1
+                    else:
+                        failed_count += 1
+                    completed_count += 1
+                    pbar.n = completed_count
+                    pbar.refresh()
+        
+        print(f"\n下载完成！成功: {success_count}/{total_chapters} 章，失败: {failed_count} 章")
             
     except Exception as e:
         print(f"导出有声书时出错: {str(e)}")
         return
+
+def list_downloaded_books():
+    """列出所有已下载的小说"""
+    downloaded_books = []
+    if os.path.exists(record_path):
+        with open(record_path, 'r', encoding='UTF-8') as f:
+            records = json.load(f)
+            
+        print("\n已下载的小说列表：")
+        for index, book_id in enumerate(records, 1):
+            name, _, _ = down_zj(book_id)
+            if name != 'err':
+                downloaded_books.append((book_id, name))
+                print(f"{index}. {name}")
+    
+    return downloaded_books
+
+def share_multiple_books():
+    """分享多本小说"""
+    downloaded_books = list_downloaded_books()
+    if not downloaded_books:
+        print("没有找到已下载的小说")
+        return
+        
+    print("\n请输入要分享的小说序号（用顿号分隔，如：1、2、4）")
+    choice = input("输入序号：")
+    
+    try:
+        # 解析用户输入的序号
+        indices = [int(x.strip()) for x in choice.split('、')]
+        selected_books = []
+        
+        # 验证序号是否有效
+        for idx in indices:
+            if 1 <= idx <= len(downloaded_books):
+                selected_books.append(downloaded_books[idx-1])
+            else:
+                print(f"序号 {idx} 无效，已跳过")
+        
+        if not selected_books:
+            print("未选择有效的小说")
+            return
+            
+        # 设置分享参数
+        valid_hours = int(input("设置链接有效期（小时，默认24）：") or 24)
+        password = input("设置访问密码（可选，直接回车跳过）：") or None
+        
+        # 创建分享
+        print("\n正在处理选中的小说...")
+        success_count = 0
+        for book_id, book_name in selected_books:
+            result = share_manager.share_book(book_id, valid_hours, password)
+            if result:
+                success_count += 1
+                print(f"\n《{book_name}》分享成功")
+            else:
+                print(f"\n《{book_name}》分享失败")
+        
+        if success_count > 0:
+            print("\n分享创建成功！")
+            print("访问地址：http://localhost:8000")
+            print("分享服务已启动，按Ctrl+C可以停止分享服务")
+            print(f"\n共选择 {len(selected_books)} 本小说，成功分享 {success_count} 本")
+            
+            # 修改等待逻辑
+            try:
+                while share_manager.running:
+                    time.sleep(0.1)  # 减少CPU使用
+            except KeyboardInterrupt:
+                share_manager.stop_server()
+                print("\n分享服务已停止")
+        
+    except ValueError:
+        print("输入格式错误，请使用顿号分隔序号")
+    except Exception as e:
+        print(f"分享过程出错：{str(e)}")
+
+# 初始化分享管理器
+share_manager = ShareManager()
 
 # 主循环
 while True:
@@ -1821,6 +1966,7 @@ while True:
 7. 退出
 8. 导出有声书
 9. 程序自检
+10.分享小说
 ''')
 
     inp = input()
@@ -1845,7 +1991,6 @@ while True:
         # 打印检查结果
         categories = {
             'runtime_env': '运行环境检查',
-            'network': '网络连接检查',
             'files_and_dirs': '文件和目录检查',
             'permissions': '权限检查',
             'config': '配置文件检查'
@@ -2058,6 +2203,9 @@ while True:
 
     elif inp == '7':
         break
+
+    elif inp == '10':
+        share_multiple_books()
 
     else:
         if book2down(inp) == 'err':
