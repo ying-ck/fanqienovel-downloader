@@ -34,22 +34,6 @@
 
 ### 请注意！修改了设置中的每一个选项都会覆盖原来的数据，请仔细查看后在做出选择。若想修复默认选项，请将`config.json`文件删除
 
-## fanqienovel downloader 在各个系统上的运行情况:
-| 系统(System) | 运行情况(Operation) |
-| ---------------- | ------------------------ |
-| windows 7 |可运行 |
-| windows 10 |可运行 |
-| windows 11|可运行 |
-| mac OS X 10.1 | 可运行 |
-| mac OS X 10.2 | 可运行 |
-| mac OS X 10.3 | 可运行 |
-| mac OS X 10.4 | 可运行 |
-| mac OS X 10.5 | 可运行 |
-| mac OS X 10.6 | 可运行 |
-| mac OS X 10.7 | 可运行 |
-| mac OS X 10.8 | 可运行 |
-| mac OS X 10.9 | 可运行 |
-| Kali Linux 2024.3 | 可运行 |
 
 ## Q&A
 ### Q1：
