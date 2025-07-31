@@ -131,4 +131,8 @@ Before using this program, please ensure compliance with relevant laws and regul
 ## Star趋势
 
 ![Stars](https://api.star-history.com/svg?repos=ying-ck/fanqienovel-downloader&type=Date)
-![Alt](https://repobeats.axiom.co/api/embed/e76cbd049219133920a113b6f4f33973e36f7fd7.svg "Repobeats analytics image")
+
+## 赞助作者
+
+[爱发电](https://afdian.com/a/qxqycb)
+
