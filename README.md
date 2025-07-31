@@ -135,4 +135,5 @@ Before using this program, please ensure compliance with relevant laws and regul
 ## 赞助作者
 
 [爱发电](https://afdian.com/a/qxqycb)
+![afdian-qxqycb](https://github.com/user-attachments/assets/19495126-7f23-410f-9796-c000df3c4185)
 
