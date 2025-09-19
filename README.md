@@ -136,3 +136,4 @@ Before using this program, please ensure compliance with relevant laws and regul
 
 ![afdian-qxqycb](https://github.com/user-attachments/assets/19495126-7f23-410f-9796-c000df3c4185)
 爱发电：https://afdian.com/a/qxqycb
+注意：赞助了不等于一定会有可以用的程序，请自行斟酌
