@@ -521,7 +521,7 @@ function initializeSocketIO() {
 document.addEventListener('DOMContentLoaded', () => {
     // 延迟加载非关键资源
     requestIdleCallback(() => {
-        loadSocketIO();
+        initializeSocketIO();
     });
     
     // 默认加载搜索页面

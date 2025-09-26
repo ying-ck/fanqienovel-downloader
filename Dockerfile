@@ -14,7 +14,12 @@ COPY requirements.txt .
 COPY src/ ./src/
 
 # 安装 Python 依赖
-RUN pip install --no-cache-dir -r requirements.txt
+# 使用阿里云镜像源，添加重试机制和信任主机参数
+RUN pip install --no-cache-dir -r requirements.txt \
+    -i https://mirrors.aliyun.com/pypi/simple/ \
+    --trusted-host mirrors.aliyun.com \
+    --timeout 600 \
+    --retries 3
 
 # 创建数据目录
 RUN mkdir -p /app/src/data /app/src/novel_downloads
