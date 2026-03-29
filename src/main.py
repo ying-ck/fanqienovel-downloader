@@ -11,6 +11,7 @@ import os
 import platform
 import shutil
 import concurrent.futures
+import threading
 from typing import Callable, Optional, Dict, List, Union
 from dataclasses import dataclass
 from enum import Enum
@@ -32,11 +33,20 @@ class Config:
     save_path: str = ''
     save_mode: SaveMode = SaveMode.SINGLE_TXT
     space_mode: str = 'halfwidth'
-    xc: int = 16
+    xc: int = 12
 
-    def __post_init__(self):
+    def normalize(self):
         if self.delay is None:
             self.delay = [50, 150]
+        cpu_count = os.cpu_count() or 4
+        default_xc = min(cpu_count, 12)
+        if self.xc <= 0:
+            self.xc = default_xc
+        else:
+            self.xc = min(self.xc, cpu_count)
+
+    def __post_init__(self):
+        self.normalize()
 
 
 class NovelDownloader:
@@ -74,7 +84,9 @@ class NovelDownloader:
             self.charset = json.load(f)
 
         self._setup_directories()
-        self._init_cookie()
+        self.cookie = None
+        self._cookie_ready = False
+        self._cookie_lock = threading.Lock()
 
         # Add these variables
         self.zj = {}  # For storing chapter data
@@ -88,20 +100,34 @@ class NovelDownloader:
         os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.bookstore_dir, exist_ok=True)
 
-    def _init_cookie(self):
-        """Initialize cookie for downloads"""
-        self.log_callback('正在获取cookie')
-        tzj = self._get_initial_chapter_id()
-
-        if os.path.exists(self.cookie_path):
+    def _load_cookie_from_file(self) -> Optional[str]:
+        """Load a cached cookie string if one already exists."""
+        if not os.path.exists(self.cookie_path):
+            return None
+        try:
             with open(self.cookie_path, 'r', encoding='UTF-8') as f:
-                self.cookie = json.load(f)
-                if self._test_cookie(tzj, self.cookie) == 'err':
-                    self._get_new_cookie(tzj)
-        else:
-            self._get_new_cookie(tzj)
+                cookie = json.load(f)
+            return cookie if isinstance(cookie, str) and cookie.strip() else None
+        except Exception:
+            return None
 
-        self.log_callback('Cookie获取成功')
+    def _init_cookie(self):
+        """Initialize a lightweight local cookie marker for downloads."""
+        if self._cookie_ready and self.cookie:
+            return
+
+        with self._cookie_lock:
+            if self._cookie_ready and self.cookie:
+                return
+
+            self.log_callback('正在获取cookie')
+            cached_cookie = self.cookie or self._load_cookie_from_file()
+            if cached_cookie:
+                self.cookie = cached_cookie
+            else:
+                self._get_new_cookie(self._get_initial_chapter_id())
+            self._cookie_ready = True
+            self.log_callback('Cookie获取成功')
 
     @dataclass
     class DownloadProgress:
@@ -123,7 +149,7 @@ class NovelDownloader:
         self._pbar.update(1)  # Update by 1 instead of setting n directly
 
         # For web: Return progress info
-        return DownloadProgress(
+        return self.DownloadProgress(
             current=current,
             total=total,
             percentage=(current / total * 100) if total > 0 else 0,
@@ -239,20 +265,22 @@ class NovelDownloader:
         """Get an initial chapter ID for cookie testing"""
         test_novel_id = 7143038691944959011  # Example novel ID
         chapters = self._get_chapter_list(test_novel_id)
-        if chapters and len(chapters[1]) > 21:
-            return int(random.choice(list(chapters[1].values())[21:]))
+        if chapters and chapters[1]:
+            # The old logic sampled later chapters to verify unrestricted access.
+            # The current fallback API can return valid content without relying on
+            # that assumption, so use a deterministic chapter to keep startup fast.
+            return int(next(iter(chapters[1].values())))
         raise Exception("Failed to get initial chapter ID")
 
     def _get_new_cookie(self, chapter_id: int):
-        """Generate new cookie"""
+        """Generate and persist a lightweight cookie marker without blocking startup."""
+        _ = chapter_id
         bas = 1000000000000000000
-        for i in range(random.randint(bas * 6, bas * 8), bas * 9):
-            time.sleep(random.randint(50, 150) / 1000)
-            self.cookie = f'novel_web_id={i}'
-            if len(self._download_chapter_content(chapter_id, test_mode=True)) > 200:
-                with open(self.cookie_path, 'w', encoding='UTF-8') as f:
-                    json.dump(self.cookie, f)
-                return
+        self.cookie = f'novel_web_id={random.randint(bas * 6, bas * 9 - 1)}'
+        with open(self.cookie_path, 'w', encoding='UTF-8') as f:
+            json.dump(self.cookie, f)
+        self._cookie_ready = True
+        return
 
     def _download_txt(self, novel_id: int) -> str:
         """Download novel in TXT format"""
@@ -863,7 +891,8 @@ class NovelDownloader:
     def _test_cookie(self, chapter_id: int, cookie: str) -> str:
         """Test if cookie is valid"""
         self.cookie = cookie
-        if len(self._download_chapter_content(chapter_id, test_mode=True)) > 200:
+        content = self._download_chapter_content(chapter_id, test_mode=True)
+        if content != 'err' and bool(content.strip()):
             return 's'
         return 'err'
 
@@ -892,14 +921,41 @@ class NovelDownloader:
 
         return title[0], chapters, status
 
+    def _fetch_external_content(self, chapter_id: int) -> Optional[str]:
+        """Fallback to a third-party decoded content API when the web reader is blocked."""
+        try:
+            response = req.get(
+                f'https://api-v2.cenguigui.cn/api/tomato/api.php?item_id={chapter_id}',
+                headers=self.headers,
+                timeout=10
+            )
+            response.raise_for_status()
+            payload = response.json()
+            content = ((payload.get('data') or {}).get('content') or '').replace('\r\n', '\n').strip()
+            return content or None
+        except Exception:
+            return None
+
+    def _log_content_source(self, chapter_id: int, source: str, test_mode: bool = False):
+        """Emit a lightweight source log for real downloads."""
+        if not test_mode:
+            self.log_callback(f'source={source} chapter_id={chapter_id}')
+
     def _download_chapter_content(self, chapter_id: int, test_mode: bool = False) -> str:
         """Download content with fallback and better error handling"""
+        self._init_cookie()
         headers = self.headers.copy()
-        headers['cookie'] = self.cookie
+        if self.cookie:
+            headers['cookie'] = self.cookie
 
         for attempt in range(3):
+            external_content = self._fetch_external_content(chapter_id)
+            if external_content:
+                self._log_content_source(chapter_id, 'external', test_mode=test_mode)
+                return external_content
+
             try:
-                # Try primary method
+                # Try reader page parsing when the fast external source is unavailable.
                 response = req.get(
                     f'https://fanqienovel.com/reader/{chapter_id}',
                     headers=headers,
@@ -913,30 +969,34 @@ class NovelDownloader:
                     )
                 )
 
-                if test_mode:
-                    return content
+                if content:
+                    self._log_content_source(chapter_id, 'reader', test_mode=test_mode)
+                    if test_mode:
+                        return content
 
-                try:
-                    return self._decode_content(content)
-                except:
-                    # Try alternative decoding mode
                     try:
-                        return self._decode_content(content, mode=1)
+                        return self._decode_content(content)
                     except:
-                        # Fallback HTML processing
-                        content = content[6:]
-                        tmp = 1
-                        result = ''
-                        for i in content:
-                            if i == '<':
-                                tmp += 1
-                            elif i == '>':
-                                tmp -= 1
-                            elif tmp == 0:
-                                result += i
-                            elif tmp == 1 and i == 'p':
-                                result = (result + '\n').replace('\n\n', '\n')
-                        return result
+                        # Try alternative decoding mode
+                        try:
+                            return self._decode_content(content, mode=1)
+                        except:
+                            # Fallback HTML processing
+                            content = content[6:]
+                            tmp = 1
+                            result = ''
+                            for i in content:
+                                if i == '<':
+                                    tmp += 1
+                                elif i == '>':
+                                    tmp -= 1
+                                elif tmp == 0:
+                                    result += i
+                                elif tmp == 1 and i == 'p':
+                                    result = (result + '\n').replace('\n\n', '\n')
+                            return result
+
+                raise ValueError('Reader page did not contain chapter paragraphs')
 
             except Exception as e:
                 # Try alternative API endpoint
@@ -945,18 +1005,20 @@ class NovelDownloader:
                         f'https://fanqienovel.com/api/reader/full?itemId={chapter_id}',
                         headers=headers
                     )
-                    content = json.loads(response.text)['data']['chapterData']['content']
-
-                    if test_mode:
-                        return content
-
-                    return self._decode_content(content)
-                except:
-                    if attempt == 2:  # Last attempt
+                    if response.text.strip():
+                        content = json.loads(response.text)['data']['chapterData']['content']
+                        self._log_content_source(chapter_id, 'reader_api', test_mode=test_mode)
                         if test_mode:
-                            return 'err'
-                        raise Exception(f"Download failed after 3 attempts: {str(e)}")
-                    time.sleep(1)
+                            return content
+                        return self._decode_content(content)
+                except Exception:
+                    pass
+
+                if attempt == 2:  # Last attempt
+                    if test_mode:
+                        return 'err'
+                    raise Exception(f"Download failed after 3 attempts: {str(e)}")
+                time.sleep(1)
 
     def _get_author_info(self, novel_id: int) -> Optional[str]:
         """Get author information from novel page"""
@@ -1277,6 +1339,8 @@ def create_cli():
             else:
                 print('请正确输入!')
                 continue
+
+            config.normalize()
 
             # Save config
             with open(downloader.config_path, 'w', encoding='UTF-8') as f:
