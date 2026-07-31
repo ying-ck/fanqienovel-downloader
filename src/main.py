@@ -1246,7 +1246,7 @@ def create_cli():
                     config.kgf = tmp
                 config.kg = int(input('请输入正文段首占位符数（当前为%d）：' % config.kg))
             elif inp2 == '2':
-                print('由于迟过小造成的后果请自行负责。\n请输入下载间隔随机延迟')
+                print('由于延迟过小造成的后果请自行负责。建议设置足够延迟以防止IP被封禁\n请输入下载间隔随机延迟')
                 config.delay[0] = int(input('下限（当前为%d）毫秒）：' % config.delay[0]))
                 config.delay[1] = int(input('上限（当前为%d）（毫秒）：' % config.delay[1]))
             elif inp2 == '3':

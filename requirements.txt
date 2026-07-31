@@ -9,4 +9,4 @@ gevent
 gevent-websocket
 beautifulsoup4
 curl_cffi
-
+qrcode #ref_main需要用到

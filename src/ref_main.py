@@ -256,38 +256,41 @@ def str_interpreter(n, mode):
             s += n[i]
     return s
 
-def down_text(it, mod=1):
+def down_text(it, mod=1):#原本用的是第三方源，由于第三方源已全部报废所以逻辑改用从官方网页reader拉内容
     max_retries = config.get('max_retries', 3)
     retry_count = 0
     content = ""
-    
-    while retry_count < max_retries:
-        try:
-            # 使用新API获取内容
-            api_url = f"http://yuefanqie.jingluo.love/content?item_id={it}"
-            response = network_manager.make_request(api_url)
-            data = response.json()
-            
-            if data.get("code") == 0:
-                content = data.get("data", {}).get("content", "")
-                # 清理HTML标签并保留段落结构
-                content = re.sub(r'<header>.*?</header>', '', content, flags=re.DOTALL)
-                content = re.sub(r'<footer>.*?</footer>', '', content, flags=re.DOTALL)
-                content = re.sub(r'</?article>', '', content)
-                content = re.sub(r'<p idx="\d+">', '\n', content)
-                content = re.sub(r'</p>', '\n', content)
-                content = re.sub(r'<[^>]+>', '', content)
-                content = re.sub(r'\n{3,}', '\n\n', content).strip()
+    while 1+1==2:
+        if retry_count >= max_retries:
+            return ""
+        else:
+            url = f"https://fanqienovel.com/reader/{it}"
+            try:
+                r = req.get(url, headers=headers, timeout=10, impersonate="chrome")
+            except:
+                retry_count += 1
+                time.sleep(retry_count)
+                continue
+            root = etree.HTML(r.text)
+            段落列表 = root.xpath('//div[contains(@class, "muye-reader-content")]//p/text()')
+            正文 = "\n".join(段落列表)
+            if 正文 == "" :
+                retry_count += 1
+                time.sleep(retry_count)
+                continue
+            else:
                 break
-        except Exception as e:
-            print(f"请求失败: {str(e)}, 重试第{retry_count + 1}次...")
-            retry_count += 1
-            time.sleep(1 * retry_count)
-    
-    if mod == 1:
-        return content, False  # 第二个参数保持原有逻辑但不再使用
-    return content
+    try:
+        结果 = str_interpreter(正文, 0)
+    except Exception:
+        结果 = str_interpreter(正文, 1)
 
+    time.sleep(random.randint(50, 150) / 1000)
+
+    # 返回形态由 mod 决定
+    if mod == 1:
+        return 结果, False
+    return 结果
 def sanitize_filename(filename):
     illegal_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
     illegal_chars_rep = ['＜', '＞', '：', '＂', '／', '＼', '｜', '？', '＊']

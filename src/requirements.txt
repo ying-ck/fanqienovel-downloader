@@ -8,4 +8,4 @@ gevent
 gevent-websocket
 beautifulsoup4
 curl_cffi
-
+qrcode #修复issue 282
