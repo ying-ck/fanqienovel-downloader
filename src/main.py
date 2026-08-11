@@ -89,19 +89,7 @@ class NovelDownloader:
         os.makedirs(self.bookstore_dir, exist_ok=True)
 
     def _init_cookie(self):
-        """Initialize cookie for downloads"""
-        self.log_callback('正在获取cookie')
-        tzj = self._get_initial_chapter_id()
-
-        if os.path.exists(self.cookie_path):
-            with open(self.cookie_path, 'r', encoding='UTF-8') as f:
-                self.cookie = json.load(f)
-                if self._test_cookie(tzj, self.cookie) == 'err':
-                    self._get_new_cookie(tzj)
-        else:
-            self._get_new_cookie(tzj)
-
-        self.log_callback('Cookie获取成功')
+        self.cookie = "novel_web_id=0"
 
     @dataclass
     class DownloadProgress:
@@ -123,7 +111,7 @@ class NovelDownloader:
         self._pbar.update(1)  # Update by 1 instead of setting n directly
 
         # For web: Return progress info
-        return DownloadProgress(
+        return self.DownloadProgress(
             current=current,
             total=total,
             percentage=(current / total * 100) if total > 0 else 0,
@@ -141,6 +129,8 @@ class NovelDownloader:
             safe_name = self._sanitize_filename(name)
             self.log_callback(f'\n开始下载《{name}》，状态：{status[0]}')
 
+            self.book_json_path = os.path.join(self.bookstore_dir, f'{safe_name}.json')
+
             # 使用原始章节列表的顺序
             chapter_list = list(chapters.items())  # 转换为列表保持顺序
             total_chapters = len(chapter_list)
@@ -149,40 +139,42 @@ class NovelDownloader:
             # 创建一个有序字典来保存章节内容
             novel_content = {}
 
-            # 下载章节
-            with tqdm(total=total_chapters, desc='下载进度') as pbar:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
-                    future_to_chapter = {
-                        executor.submit(
-                            self._download_chapter,
-                            title,
-                            chapter_id,
-                            {}
-                        ): (title, chapter_id) for title, chapter_id in chapter_list
-                    }
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.xc) as executor:
+                future_to_chapter = {
+                    executor.submit(
+                        self._download_chapter,
+                        title,
+                        chapter_id,
+                        {}
+                    ): (title, chapter_id) for title, chapter_id in chapter_list
+                }
 
-                    for future in concurrent.futures.as_completed(future_to_chapter):
-                        title, _ = future_to_chapter[future]
-                        try:
-                            content = future.result()
-                            if content:
-                                novel_content[title.strip()] = content  # 保存时去除标题的空白字符
-                        except Exception as e:
-                            self.log_callback(f'下载章节失败 {title}: {str(e)}')
+                for future in concurrent.futures.as_completed(future_to_chapter):
+                    title, _ = future_to_chapter[future]
+                    try:
+                        content = future.result()
+                        if content:
+                            novel_content[title.strip()] = content  # 保存时去除标题的空白字符
+                    except Exception as e:
+                        self.log_callback(f'下载章节失败 {title}: {str(e)}')
 
-                        completed_chapters += 1
-                        pbar.update(1)
-                        self.progress_callback(
-                            completed_chapters,
-                            total_chapters,
-                            '下载进度',
-                            title
-                        )
+                    completed_chapters += 1
+                    self.progress_callback(
+                        completed_chapters,
+                        total_chapters,
+                        '下载进度',
+                        title
+                    )
 
             # 保存到JSON文件
             json_path = os.path.join(self.bookstore_dir, f'{safe_name}.json')
             with open(json_path, 'w', encoding='UTF-8') as f:
                 json.dump(novel_content, f, ensure_ascii=False, indent=4)
+
+            if self.config.save_mode == SaveMode.SINGLE_TXT:
+                return self._save_single_txt(safe_name, novel_content)
+            elif self.config.save_mode == SaveMode.SPLIT_TXT:
+                return self._save_split_txt(safe_name, novel_content)
 
             return 's'
 
@@ -198,30 +190,42 @@ class NovelDownloader:
         if not keyword:
             return []
 
-        # Use the correct API endpoint from ref_main.py
-        url = f"https://api5-normal-lf.fqnovel.com/reading/bookapi/search/page/v/"
-        params = {
-            "query": keyword,
-            "aid": "1967",
-            "channel": "0",
-            "os_version": "0",
-            "device_type": "0",
-            "device_platform": "0",
-            "iid": "466614321180296",
-            "passback": "{(page-1)*10}",
-            "version_code": "999"
-        }
+        url = "http://101.35.133.34:5000/api/search"
+        params = {"key": keyword, "offset": 0}
 
         try:
-            response = req.get(url, params=params, headers=self.headers,impersonate="chrome")
+            response = req.get(url, params=params, timeout=15)
             response.raise_for_status()
             data = response.json()
 
-            if data['code'] == 0 and data['data']:
-                return data['data']
-            else:
+            if data.get('code') != 200:
                 self.log_callback("没有找到相关书籍。")
                 return []
+
+            tabs = data.get('data', {}).get('search_tabs', []) or []
+            results = []
+            seen = set()
+            for tab in tabs:
+                for item in tab.get('data', []) or []:
+                    for book in item.get('book_data', []) or []:
+                        book_id = book.get('book_id')
+                        if not book_id or book_id in seen:
+                            continue
+                        seen.add(book_id)
+                        results.append({
+                            'book_id': book_id,
+                            'book_name': book.get('book_name', ''),
+                            'author': book.get('author', ''),
+                            'abstract': book.get('abstract', ''),
+                            'word_number': book.get('word_number', ''),
+                            'serial_count': book.get('serial_count', ''),
+                            'score': book.get('score', ''),
+                            'category': book.get('category', ''),
+                            'read_cnt_text': book.get('read_cnt_text', ''),
+                            'thumb_url': book.get('thumb_url', ''),
+                            'book_data': [book],
+                        })
+            return results
 
         except req.RequestException as e:
             self.log_callback(f"网络请求失败: {str(e)}")
@@ -243,16 +247,17 @@ class NovelDownloader:
             return int(random.choice(list(chapters[1].values())[21:]))
         raise Exception("Failed to get initial chapter ID")
 
-    def _get_new_cookie(self, chapter_id: int):
-        """Generate new cookie"""
-        bas = 1000000000000000000
-        for i in range(random.randint(bas * 6, bas * 8), bas * 9):
-            time.sleep(random.randint(50, 150) / 1000)
-            self.cookie = f'novel_web_id={i}'
-            if len(self._download_chapter_content(chapter_id, test_mode=True)) > 200:
-                with open(self.cookie_path, 'w', encoding='UTF-8') as f:
-                    json.dump(self.cookie, f)
-                return
+    # def _get_new_cookie(self, chapter_id: int):
+    #我承认我看到这个函数的时候是没能绷住的，什么神奇玩意 ——XEDAB
+    #     """Generate new cookie"""
+    #     bas = 1000000000000000000
+    #     for i in range(random.randint(bas * 6, bas * 8), bas * 9):
+    #         time.sleep(random.randint(50, 150) / 1000)
+    #         self.cookie = f'novel_web_id={i}'
+    #         if len(self._download_chapter_content(chapter_id, test_mode=True)) > 200:
+    #             with open(self.cookie_path, 'w', encoding='UTF-8') as f:
+    #                 json.dump(self.cookie, f)
+    #             return
 
     def _download_txt(self, novel_id: int) -> str:
         """Download novel in TXT format"""
@@ -454,10 +459,10 @@ class NovelDownloader:
                 # Handle cookie refresh
                 if content == 'err':
                     self.tcs += 1
-                    if self.tcs > 7:
+                    if self.tcs > 5:
                         self.tcs = 0
-                        self._get_new_cookie(self.tzj)
-                    continue  # Try again with new cookie
+                        _ = req.get("http://101.35.133.34:5000/api/device/register",params={"platform": "android"},timeout=15)#重置设备池
+                    continue  # Try again with new cookie#原本的那个幽默重试cookie逻辑已删掉，替换新API后直接用新API的重置设备池尝试
 
                 # Save progress periodically
                 self.cs += 1
@@ -893,71 +898,26 @@ class NovelDownloader:
         return title[0], chapters, status
 
     def _download_chapter_content(self, chapter_id: int, test_mode: bool = False) -> str:
-        """Download content with fallback and better error handling"""
+        """用替换过的新API下载，理论上能用"""
         headers = self.headers.copy()
         headers['cookie'] = self.cookie
+        try:
+            new_res = req.get("http://101.35.133.34:5000/api/raw_full",
+                             params={"item_id": chapter_id},
+                             timeout=15)#用新API
+            d = new_res.json()["data"]
+            if d["paragraphs_num"] > d["free_para_nums"]:
+                self.log_callback(f'部分章节付费，下载不完整')
+            content = '\n'.join(etree.HTML(d["content"]).xpath('//p/text()'))
+            
+            if test_mode:
+                return content
+            return self._decode_content(content)
 
-        for attempt in range(3):
-            try:
-                # Try primary method
-                response = req.get(
-                    f'https://fanqienovel.com/reader/{chapter_id}',
-                    headers=headers,
-                    timeout=10,impersonate="chrome"
-                )
-                response.raise_for_status()
-
-                content = '\n'.join(
-                    etree.HTML(response.text).xpath(
-                        '//div[@class="muye-reader-content noselect"]//p/text()'
-                    )
-                )
-
-                if test_mode:
-                    return content
-
-                try:
-                    return self._decode_content(content)
-                except:
-                    # Try alternative decoding mode
-                    try:
-                        return self._decode_content(content, mode=1)
-                    except:
-                        # Fallback HTML processing
-                        content = content[6:]
-                        tmp = 1
-                        result = ''
-                        for i in content:
-                            if i == '<':
-                                tmp += 1
-                            elif i == '>':
-                                tmp -= 1
-                            elif tmp == 0:
-                                result += i
-                            elif tmp == 1 and i == 'p':
-                                result = (result + '\n').replace('\n\n', '\n')
-                        return result
-
-            except Exception as e:
-                # Try alternative API endpoint
-                try:
-                    response = req.get(
-                        f'https://fanqienovel.com/api/reader/full?itemId={chapter_id}',
-                        headers=headers,
-                        impersonate="chrome"#fuck copilot
-                    )
-                    content = json.loads(response.text)['data']['chapterData']['content']
-
-                    if test_mode:
-                        return content
-
-                    return self._decode_content(content)
-                except:
-                    if attempt == 2:  # Last attempt
-                        if test_mode:
-                            return 'err'
-                        raise Exception(f"Download failed after 3 attempts: {str(e)}")
-                    time.sleep(1)
+        except Exception as e:
+            if test_mode:
+                return 'err'
+            raise
 
     def _get_author_info(self, novel_id: int) -> Optional[str]:
         """Get author information from novel page"""
@@ -1129,7 +1089,7 @@ def create_cli():
     print('本程序完全免费(此版本为WEB版，目前处于测试阶段)\nGithub: https://github.com/ying-ck/fanqienovel-downloader\n作者：Yck & qxqycb & lingo34')
 
     config = Config()
-    downloader = NovelDownloader(config)
+    downloader = NovelDownloader(config, log_callback=tqdm.write)
 
     # Check for backup
     backup_folder_path = 'C:\\Users\\Administrator\\fanqie_down_backup'
