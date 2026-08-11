@@ -303,6 +303,7 @@ def load_config():
                 config.save_mode = SaveMode(saved_config.get('save_mode', config.save_mode.value))
                 config.space_mode = saved_config.get('space_mode', config.space_mode)
                 config.xc = saved_config.get('xc', config.xc)
+                config.normalize()
                 
                 logger.info("Configuration loaded successfully")
     except Exception as e:
@@ -624,6 +625,7 @@ def settings():
             config.delay = data.get('delay', config.delay)
             config.save_mode = SaveMode(data.get('save_mode', config.save_mode.value))
             config.xc = data.get('xc', config.xc)
+            config.normalize()
             
             # 保存设置到文件
             save_config()
